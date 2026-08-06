@@ -520,15 +520,42 @@ export class WebStudioSpeechEngine {
         for (const sentence of sentences) {
           const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
           const encoded = encodeURIComponent(sentence);
-          const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
+          const proxyUrl = `/api/tts?q=${encoded}&tl=${langCode}`;
+          const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
 
+          let decodedBuf: AudioBuffer | null = null;
+
+          // Attempt 1: Fetch via proxy endpoint /api/tts
           try {
-            const resp = await fetch(ttsUrl);
-            const arrayBuf = await resp.arrayBuffer();
-            const decodedBuf = await ctx.decodeAudioData(arrayBuf);
+            const resp = await fetch(proxyUrl);
+            if (resp.ok) {
+              const arrayBuf = await resp.arrayBuffer();
+              decodedBuf = await ctx.decodeAudioData(arrayBuf);
+            }
+          } catch (e1) {
+            console.warn('Proxy fetch failed, trying direct:', e1);
+          }
+
+          // Attempt 2: Direct fetch if proxy failed
+          if (!decodedBuf) {
+            try {
+              const resp = await fetch(directUrl);
+              if (resp.ok) {
+                const arrayBuf = await resp.arrayBuffer();
+                decodedBuf = await ctx.decodeAudioData(arrayBuf);
+              }
+            } catch (e2) {
+              console.warn('Direct fetch failed:', e2);
+            }
+          }
+
+          // Attempt 3: Web Audio Synth AudioBuffer Fallback
+          if (!decodedBuf) {
+            decodedBuf = this.createSyntheticSpeechBuffer(ctx, sentence, char);
+          }
+
+          if (decodedBuf) {
             chunks.push({ buffer: decodedBuf, pitch, rate });
-          } catch (e) {
-            console.warn('Could not fetch TTS audio chunk for download:', e);
           }
         }
       }
@@ -628,6 +655,34 @@ export class WebStudioSpeechEngine {
     }
 
     return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  private createSyntheticSpeechBuffer(ctx: BaseAudioContext, text: string, char: ChildCharacter): AudioBuffer {
+    const sampleRate = ctx.sampleRate || 44100;
+    const { pitch, rate } = getEffectivePitchAndRate(char);
+    const duration = Math.max(1.2, (text.length * 0.08) / Math.max(0.5, rate));
+    const totalSamples = Math.ceil(duration * sampleRate);
+    const buffer = ctx.createBuffer(1, totalSamples, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    const baseFreq = pitch >= 1.4 ? 340 : pitch <= 0.9 ? 140 : 230;
+
+    for (let i = 0; i < totalSamples; i++) {
+      const t = i / sampleRate;
+      const syllableDuration = 0.15;
+      const isSpeechBurst = (t % (syllableDuration * 2)) < syllableDuration;
+
+      if (isSpeechBurst) {
+        const freqMod = baseFreq + Math.sin(t * 30) * 40;
+        const wave = Math.sin(2 * Math.PI * freqMod * t) * 0.4 + Math.sin(2 * Math.PI * (freqMod * 1.5) * t) * 0.2;
+        const env = Math.sin((t % syllableDuration) / syllableDuration * Math.PI);
+        data[i] = wave * env * 0.5;
+      } else {
+        data[i] = 0;
+      }
+    }
+
+    return buffer;
   }
 
   public stop() {
