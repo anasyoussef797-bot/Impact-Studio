@@ -73,7 +73,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Lulu',
     arabicName: 'لولو',
     avatar: '👧',
-    pitch: 1.35, // Clear, cute young girl child voice
+    pitch: 1.28, // Clear, cute young girl child voice
     speechRate: 0.92,
     preferredLanguage: 'gulf_ar',
     color: '#FD79A8',
@@ -86,7 +86,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Rashed',
     arabicName: 'راشد',
     avatar: '👦',
-    pitch: 1.25, // Energetic young boy child voice
+    pitch: 1.20, // Energetic young boy child voice
     speechRate: 0.88,
     preferredLanguage: 'gulf_ar',
     color: '#0984E3',
@@ -99,7 +99,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Noor',
     arabicName: 'نور',
     avatar: '👧🏽',
-    pitch: 1.38, // Bright little kid girl voice
+    pitch: 1.32, // Bright little kid girl voice
     speechRate: 0.94,
     preferredLanguage: 'egyptian_ar',
     color: '#00CEC9',
@@ -112,7 +112,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Ali',
     arabicName: 'علي',
     avatar: '👦🏻',
-    pitch: 1.20, // Calm young boy voice
+    pitch: 1.15, // Calm young boy voice
     speechRate: 0.85,
     preferredLanguage: 'fusha_ar',
     color: '#6C5CE7',
@@ -125,7 +125,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Sara',
     arabicName: 'سارة',
     avatar: '👧🏼',
-    pitch: 1.32, // Playful child girl voice
+    pitch: 1.25, // Playful child girl voice
     speechRate: 0.90,
     preferredLanguage: 'english',
     color: '#E17055',
@@ -151,7 +151,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Mr. Ahmed',
     arabicName: 'المعلم أحمد',
     avatar: '👨‍🏫',
-    pitch: 0.70, // Deep adult male teacher voice
+    pitch: 0.75, // Deep adult male teacher voice
     speechRate: 0.85,
     preferredLanguage: 'fusha_ar',
     color: '#2E7D32',
@@ -167,6 +167,9 @@ export class WebStudioSpeechEngine {
   private activeTimers: number[] = [];
   private activeAudios: HTMLAudioElement[] = [];
   private isStopped = false;
+  private audioCtx: AudioContext | null = null;
+  private mediaRecorder: MediaRecorder | null = null;
+  private recordedChunks: Blob[] = [];
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -198,10 +201,10 @@ export class WebStudioSpeechEngine {
     if (available.length === 0) return null;
 
     const isArabic = dialectId.includes('ar');
-    const femaleKeywords = ['zira', 'laila', 'salma', 'zeina', 'hoda', 'mariam', 'samantha', 'victoria', 'female', 'woman', 'kore', 'yuna'];
+    const femaleKeywords = ['zira', 'laila', 'salma', 'zeina', 'hoda', 'mariam', 'samantha', 'victoria', 'female', 'woman', 'kore', 'yuna', 'tarik_female'];
     const maleKeywords = ['maged', 'tarik', 'tariq', 'nizar', 'naayf', 'mehdi', 'male', 'man', 'david', 'george', 'alex', 'adam', 'thomas', 'stefan', 'mark'];
 
-    // Filter by language first
+    // Filter by language prefix
     let langVoices = available.filter((v) => {
       const vLang = v.lang.toLowerCase();
       if (isArabic) {
@@ -214,29 +217,30 @@ export class WebStudioSpeechEngine {
       langVoices = available;
     }
 
-    if (gender === 'female') {
-      const femaleMatch = langVoices.find((v) =>
-        femaleKeywords.some((kw) => v.name.toLowerCase().includes(kw))
-      );
-      if (femaleMatch) return femaleMatch;
-    } else if (gender === 'male') {
-      const maleMatch = langVoices.find((v) =>
+    if (gender === 'male') {
+      // Find a voice containing explicit male keywords
+      const explicitMale = langVoices.find((v) =>
         maleKeywords.some((kw) => v.name.toLowerCase().includes(kw))
       );
-      if (maleMatch) return maleMatch;
+      if (explicitMale) return explicitMale;
 
-      // Exclude known female voices to guarantee a male tone
-      const nonFemaleMatch = langVoices.find(
+      // Filter out female voices to avoid using female voice for Mr. Ahmed
+      const maleCandidates = langVoices.filter(
         (v) => !femaleKeywords.some((kw) => v.name.toLowerCase().includes(kw))
       );
-      if (nonFemaleMatch) return nonFemaleMatch;
+      if (maleCandidates.length > 0) return maleCandidates[0];
+    } else if (gender === 'female') {
+      const explicitFemale = langVoices.find((v) =>
+        femaleKeywords.some((kw) => v.name.toLowerCase().includes(kw))
+      );
+      if (explicitFemale) return explicitFemale;
     }
 
     return langVoices[0] || available[0] || null;
   }
 
   /**
-   * Split text into shorter phrases (max 120 chars) for stable TTS playback
+   * Split text into clean short sentences (max 120 chars) for stable TTS execution
    */
   private splitTextIntoSentences(text: string): string[] {
     const clean = text.trim();
@@ -261,7 +265,7 @@ export class WebStudioSpeechEngine {
   }
 
   /**
-   * Main entry point to speak for selected characters (supports single character solo or chorus)
+   * Main speech function for single character or group chorus
    */
   public speakGroupChorus(
     text: string,
@@ -283,12 +287,16 @@ export class WebStudioSpeechEngine {
     const isArabic = /[\u0600-\u06FF]/.test(cleanText) || dialectId.includes('ar');
     const sentences = this.splitTextIntoSentences(cleanText);
 
-    // Warm up / unstick SpeechSynthesis immediately
+    // Ensure SpeechSynthesis is active on Vercel/Chrome
     if (this.synth) {
-      if (this.synth.paused) {
-        this.synth.resume();
+      try {
+        if (this.synth.paused) {
+          this.synth.resume();
+        }
+        this.synth.cancel();
+      } catch (e) {
+        // ignore
       }
-      this.synth.cancel();
     }
 
     let completedChars = 0;
@@ -301,9 +309,8 @@ export class WebStudioSpeechEngine {
       }
     };
 
-    // Speak for each character
     characters.forEach((char, charIndex) => {
-      const staggerDelay = charIndex * 50; // Chorus stagger offset
+      const staggerDelay = charIndex * 40; // Staggered chorus
 
       const timerId = window.setTimeout(() => {
         if (this.isStopped) return;
@@ -315,7 +322,7 @@ export class WebStudioSpeechEngine {
   }
 
   /**
-   * Play sentences for a given character using Web Speech API with fallback
+   * Play character speech sequentially sentence by sentence
    */
   private playCharacterSequential(
     sentences: string[],
@@ -335,13 +342,13 @@ export class WebStudioSpeechEngine {
       const sentence = sentences[sentenceIndex];
       sentenceIndex++;
 
-      // Try SpeechSynthesisUtterance first
+      // Priority 1: Native Web Speech API
       if (this.synth && 'SpeechSynthesisUtterance' in window) {
         this.speakWithSpeechSynthesis(sentence, char, dialectId, isArabic, () => {
           speakNextSentence();
         });
       } else {
-        // Online Audio TTS fallback
+        // Priority 2: Online Audio Fallback
         this.speakWithAudioFallback(sentence, char, dialectId, isArabic, () => {
           speakNextSentence();
         });
@@ -352,7 +359,7 @@ export class WebStudioSpeechEngine {
   }
 
   /**
-   * Speak sentence using native Web Speech API
+   * Speak sentence using native Web Speech API with unstick handling
    */
   private speakWithSpeechSynthesis(
     sentence: string,
@@ -374,23 +381,18 @@ export class WebStudioSpeechEngine {
       const utterance = new SpeechSynthesisUtterance(sentence);
       const dialect = LANGUAGE_DIALECTS.find((d) => d.id === dialectId) || LANGUAGE_DIALECTS[0];
 
-      // Match best voice for gender
+      // Find gender-matched voice
       const bestVoice = this.findBestVoice(dialectId, char.gender);
       if (bestVoice) {
         utterance.voice = bestVoice;
         utterance.lang = bestVoice.lang;
       } else {
-        // Fallback locale for Arabic
         utterance.lang = isArabic ? 'ar-SA' : dialect.localeCode;
       }
 
-      // Enforce distinct, clear pitches without chipmunk distortion
-      // Girls: 1.30 to 1.38
-      // Boys: 1.18 to 1.25
-      // Female Teacher: 1.05
-      // Male Teacher: 0.70
-      utterance.pitch = Math.min(1.45, Math.max(0.65, char.pitch));
-      utterance.rate = Math.min(1.3, Math.max(0.7, char.speechRate));
+      // Precise non-distorted pitch settings
+      utterance.pitch = Math.min(1.40, Math.max(0.65, char.pitch));
+      utterance.rate = Math.min(1.2, Math.max(0.75, char.speechRate));
 
       let hasEnded = false;
       const markNext = () => {
@@ -402,18 +404,16 @@ export class WebStudioSpeechEngine {
 
       utterance.onend = markNext;
       utterance.onerror = (e) => {
-        console.warn('Utterance error, switching to Audio fallback:', e);
+        console.warn('Utterance failed on browser, switching to audio fallback:', e);
         if (!hasEnded) {
           hasEnded = true;
-          // Fallback to audio if WebSpeech fails
           this.speakWithAudioFallback(sentence, char, dialectId, isArabic, onNext);
         }
       };
 
-      // Watchdog timer in case Chrome hangs on speech utterance
+      // Watchdog timer to unstick browser if speech hangs
       const watchdog = setTimeout(() => {
         if (!hasEnded) {
-          console.warn('Utterance watchdog timeout, continuing...');
           markNext();
         }
       }, Math.max(3500, sentence.length * 120));
@@ -427,7 +427,7 @@ export class WebStudioSpeechEngine {
   }
 
   /**
-   * Fallback using Google Translate TTS / Voice audio element
+   * Fallback using online Audio stream with custom pitch
    */
   private speakWithAudioFallback(
     sentence: string,
@@ -450,8 +450,15 @@ export class WebStudioSpeechEngine {
       audio.crossOrigin = 'anonymous';
       audio.src = url;
 
-      // Adjust playback rate for pitch variation
-      audio.playbackRate = Math.min(1.3, Math.max(0.8, char.pitch > 1.2 ? 1.15 : char.pitch < 0.9 ? 0.85 : 1.0));
+      // Adjust playback rate for teacher vs child
+      if (char.role === 'teacher' && char.gender === 'male') {
+        audio.playbackRate = 0.85; // Deep male teacher
+      } else if (char.role === 'teacher' && char.gender === 'female') {
+        audio.playbackRate = 1.0; // Normal female teacher
+      } else {
+        // Child voices: slight pitch shift without distortion
+        audio.playbackRate = Math.min(1.25, Math.max(0.9, char.pitch));
+      }
 
       this.activeAudios.push(audio);
 
@@ -464,17 +471,146 @@ export class WebStudioSpeechEngine {
       };
 
       audio.onended = finish;
-      audio.onerror = () => {
-        finish();
-      };
+      audio.onerror = finish;
 
-      audio.play().catch(() => {
-        finish();
-      });
+      audio.play().catch(() => finish());
     } catch (e) {
       console.error('Audio fallback error:', e);
       onNext();
     }
+  }
+
+  /**
+   * Export / Download Speech as MP3/WAV file
+   */
+  public async downloadAudioFile(
+    text: string,
+    characters: ChildCharacter[],
+    dialectId: LanguageDialectId,
+    onProgress: (status: string) => void
+  ): Promise<void> {
+    const cleanText = text.trim();
+    if (!cleanText || characters.length === 0) return;
+
+    onProgress('جاري تحضير واستخراج الملف الصوتي (Generating Audio File)...');
+
+    try {
+      const isArabic = /[\u0600-\u06FF]/.test(cleanText) || dialectId.includes('ar');
+      const sentences = this.splitTextIntoSentences(cleanText);
+      const audioBuffers: AudioBuffer[] = [];
+
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+      for (const char of characters) {
+        for (const sentence of sentences) {
+          const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
+          const encoded = encodeURIComponent(sentence);
+          const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
+
+          try {
+            const resp = await fetch(ttsUrl);
+            const arrayBuf = await resp.arrayBuffer();
+            const decodedBuf = await ctx.decodeAudioData(arrayBuf);
+            audioBuffers.push(decodedBuf);
+          } catch (e) {
+            console.warn('Could not fetch TTS audio chunk for download:', e);
+          }
+        }
+      }
+
+      if (audioBuffers.length === 0) {
+        onProgress('عذراً، تعذر دمج الصوت، يرجى المحاولة مرة أخرى.');
+        return;
+      }
+
+      // Calculate total audio duration
+      const totalSamples = audioBuffers.reduce((acc, buf) => acc + buf.length, 0);
+      const sampleRate = audioBuffers[0].sampleRate;
+      const offlineCtx = new OfflineAudioContext(1, totalSamples, sampleRate);
+
+      let offset = 0;
+      for (const buf of audioBuffers) {
+        const source = offlineCtx.createBufferSource();
+        source.buffer = buf;
+        source.connect(offlineCtx.destination);
+        source.start(offset);
+        offset += buf.duration;
+      }
+
+      const renderedBuffer = await offlineCtx.startRendering();
+
+      // Convert AudioBuffer to WAV Blob
+      const wavBlob = this.bufferToWave(renderedBuffer, totalSamples);
+      const url = URL.createObjectURL(wavBlob);
+
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `impact-studio-speech-${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      onProgress('تم تنزيل الملف الصوتي بنجاح! (Downloaded Successfully)');
+    } catch (err) {
+      console.error('Error downloading audio file:', err);
+      onProgress('حدث خطأ أثناء تنزيل الصوت.');
+    }
+  }
+
+  /**
+   * Helper to encode AudioBuffer to downloadable WAV Blob
+   */
+  private bufferToWave(abuffer: AudioBuffer, len: number): Blob {
+    const numOfChan = abuffer.numberOfChannels;
+    const length = len * numOfChan * 2 + 44;
+    const buffer = new ArrayBuffer(length);
+    const view = new DataView(buffer);
+    const channels: Float32Array[] = [];
+    let sample = 0;
+    let offset = 0;
+    let pos = 0;
+
+    function setUint16(data: number) {
+      view.setUint16(pos, data, true);
+      pos += 2;
+    }
+
+    function setUint32(data: number) {
+      view.setUint32(pos, data, true);
+      pos += 4;
+    }
+
+    setUint32(0x46464952); // "RIFF"
+    setUint32(length - 8);
+    setUint32(0x45564157); // "WAVE"
+    setUint32(0x20746d66); // "fmt " chunk
+    setUint32(16);
+    setUint16(1); // PCM
+    setUint16(numOfChan);
+    setUint32(abuffer.sampleRate);
+    setUint32(abuffer.sampleRate * 2 * numOfChan);
+    setUint16(numOfChan * 2);
+    setUint16(16); // 16-bit
+    setUint32(0x61746164); // "data" chunk
+    setUint32(length - pos - 4);
+
+    for (let i = 0; i < abuffer.numberOfChannels; i++) {
+      channels.push(abuffer.getChannelData(i));
+    }
+
+    while (offset < len) {
+      for (let i = 0; i < numOfChan; i++) {
+        sample = Math.max(-1, Math.min(1, channels[i][offset]));
+        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+        view.setInt16(pos, sample, true);
+        pos += 2;
+      }
+      offset++;
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
   }
 
   /**
@@ -483,11 +619,9 @@ export class WebStudioSpeechEngine {
   public stop() {
     this.isStopped = true;
 
-    // Clear active timers
     this.activeTimers.forEach((id) => clearTimeout(id));
     this.activeTimers = [];
 
-    // Pause audio elements
     this.activeAudios.forEach((audio) => {
       try {
         audio.pause();
@@ -498,7 +632,6 @@ export class WebStudioSpeechEngine {
     });
     this.activeAudios = [];
 
-    // Cancel Web Speech API
     if (this.synth) {
       try {
         this.synth.cancel();

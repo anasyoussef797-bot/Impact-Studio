@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Square, Users, Volume2, Sparkles, RefreshCw } from 'lucide-react';
+import { Play, Square, Users, Download, Sparkles, RefreshCw } from 'lucide-react';
 import { ChildCharacter, LanguageDialectId } from '../types';
 import { LANGUAGE_DIALECTS, speechEngine } from '../utils/speechSynthesis';
 
@@ -14,6 +14,8 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
     LANGUAGE_DIALECTS[0].sampleText
   );
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   const currentDialectObj = LANGUAGE_DIALECTS.find((d) => d.id === selectedDialect) || LANGUAGE_DIALECTS[0];
 
@@ -49,6 +51,27 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
       () => setIsSpeaking(true),
       () => setIsSpeaking(false)
     );
+  };
+
+  const handleDownload = async () => {
+    if (isDownloading || !scriptText.trim()) return;
+
+    setIsDownloading(true);
+    setDownloadStatus('جاري جلب ومعالجة الصوت...');
+
+    const charsToSpeak = selectedCharacters.length > 0 ? selectedCharacters : [characters[0]];
+
+    await speechEngine.downloadAudioFile(
+      scriptText,
+      charsToSpeak,
+      selectedDialect,
+      (statusMsg) => {
+        setDownloadStatus(statusMsg);
+        setTimeout(() => setDownloadStatus(null), 4000);
+      }
+    );
+
+    setIsDownloading(false);
   };
 
   return (
@@ -197,8 +220,8 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
         </div>
       </div>
 
-      {/* Play Speech CTA Button */}
-      <div className="flex justify-center pt-2">
+      {/* Play Speech & Download CTA Buttons */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
         <button
           onClick={handlePlay}
           className={`w-full sm:w-auto px-10 py-5 bg-[#FF7043] hover:bg-[#F4511E] rounded-3xl shadow-lg shadow-orange-200 flex items-center justify-center space-x-3 rtl:space-x-reverse transition-all transform hover:scale-[1.02] active:scale-95 text-white ${
@@ -213,10 +236,29 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
             )}
           </div>
           <span className="font-black text-xl tracking-wider uppercase">
-            {isSpeaking ? 'Stop Speech' : 'Play Speech'}
+            {isSpeaking ? 'إيقاف الصوت (Stop)' : 'تشغيل الصوت (Play)'}
+          </span>
+        </button>
+
+        <button
+          onClick={handleDownload}
+          disabled={isDownloading || !scriptText.trim()}
+          className="w-full sm:w-auto px-8 py-5 bg-[#2E7D32] hover:bg-[#1B5E20] disabled:bg-gray-300 rounded-3xl shadow-lg shadow-green-200 flex items-center justify-center space-x-3 rtl:space-x-reverse transition-all transform hover:scale-[1.02] active:scale-95 text-white font-bold"
+        >
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+            <Download className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-black text-lg tracking-wide">
+            {isDownloading ? 'جاري التحميل...' : 'حفظ كملف صوتی (Download MP3)'}
           </span>
         </button>
       </div>
+
+      {downloadStatus && (
+        <div className="text-center p-3 bg-purple-50 border border-purple-200 text-purple-900 rounded-2xl text-xs font-bold animate-fade-in">
+          {downloadStatus}
+        </div>
+      )}
 
     </div>
   );
