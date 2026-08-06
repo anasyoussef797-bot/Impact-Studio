@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             }`}
           >
             <Volume2 className="w-4 h-4" />
-            <span>Studio Live</span>
+            <span>الاستوديو (Studio)</span>
           </button>
 
           <button
@@ -53,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             }`}
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>Children Roster</span>
+            <span>أدوات ضبط الأصوات (Voice Controls)</span>
           </button>
 
           <button
@@ -65,7 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             }`}
           >
             <Code2 className="w-4 h-4" />
-            <span>Android Code Explorer</span>
+            <span>كود أندرويد (Android Code)</span>
           </button>
         </div>
 

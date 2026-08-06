@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Play, Square, Users, Download, Sparkles, RefreshCw } from 'lucide-react';
-import { ChildCharacter, LanguageDialectId } from '../types';
-import { LANGUAGE_DIALECTS, speechEngine } from '../utils/speechSynthesis';
+import { Play, Square, Users, Download, Sparkles, RefreshCw, Sliders, Gauge, Smile, Volume2 } from 'lucide-react';
+import { ChildCharacter, LanguageDialectId, VoiceMood } from '../types';
+import { LANGUAGE_DIALECTS, MOOD_PRESETS, speechEngine } from '../utils/speechSynthesis';
 
 interface MainStudioViewProps {
   characters: ChildCharacter[];
@@ -16,6 +16,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [activeControlCharId, setActiveControlCharId] = useState<string>(characters[0].id);
 
   const currentDialectObj = LANGUAGE_DIALECTS.find((d) => d.id === selectedDialect) || LANGUAGE_DIALECTS[0];
 
@@ -31,9 +32,29 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isSelected: !c.isSelected } : c))
     );
+    setActiveControlCharId(id);
+  };
+
+  const handlePitchChange = (id: string, newPitch: number) => {
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, pitch: parseFloat(newPitch.toFixed(2)) } : c))
+    );
+  };
+
+  const handleRateChange = (id: string, newRate: number) => {
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, speechRate: parseFloat(newRate.toFixed(2)) } : c))
+    );
+  };
+
+  const handleMoodChange = (id: string, newMood: VoiceMood) => {
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, mood: newMood } : c))
+    );
   };
 
   const selectedCharacters = characters.filter((c) => c.isSelected);
+  const activeChar = characters.find((c) => c.id === activeControlCharId) || characters[0];
 
   const handlePlay = () => {
     if (isSpeaking) {
@@ -42,7 +63,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
       return;
     }
 
-    const charsToSpeak = selectedCharacters.length > 0 ? selectedCharacters : [characters[0]];
+    const charsToSpeak = selectedCharacters.length > 0 ? selectedCharacters : [activeChar];
 
     speechEngine.speakGroupChorus(
       scriptText,
@@ -57,9 +78,9 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
     if (isDownloading || !scriptText.trim()) return;
 
     setIsDownloading(true);
-    setDownloadStatus('جاري جلب ومعالجة الصوت...');
+    setDownloadStatus('جاري جلب ومعالجة الصوت وتصديره كملف صوتی...');
 
-    const charsToSpeak = selectedCharacters.length > 0 ? selectedCharacters : [characters[0]];
+    const charsToSpeak = selectedCharacters.length > 0 ? selectedCharacters : [activeChar];
 
     await speechEngine.downloadAudioFile(
       scriptText,
@@ -82,10 +103,10 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
             <span className="px-3 py-1 bg-[#E0F7FA] text-[#00838F] rounded-xl text-xs font-extrabold uppercase tracking-wide">
-              Editor
+              محرر النص
             </span>
             <span className="text-gray-400 text-xs font-semibold">
-              | {selectedCharacters.length > 0 ? `${selectedCharacters.map(c => c.name).join(', ')}` : 'Default Voice'}
+              | {selectedCharacters.length > 0 ? `${selectedCharacters.map(c => c.arabicName).join('، ')}` : activeChar.arabicName}
             </span>
           </div>
 
@@ -107,7 +128,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
               className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-xl text-xs font-semibold border border-gray-200 hover:bg-gray-100 flex items-center gap-1 transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Reset</span>
+              <span>نص تجريبي</span>
             </button>
           </div>
         </div>
@@ -127,11 +148,11 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
               onClick={() => setScriptText('')}
               className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-medium border border-gray-100 transition-all"
             >
-              Clear
+              مسح النص (Clear)
             </button>
           </div>
           <p className="font-semibold text-[#7B1FA2]">
-            {scriptText.length} Characters | {currentDialectObj.nativeName}
+            {scriptText.length} حرف | {currentDialectObj.nativeName}
           </p>
         </div>
       </div>
@@ -141,12 +162,12 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <h2 className="text-xs font-extrabold text-gray-700 uppercase tracking-wide flex items-center gap-2">
             <Users className="w-4 h-4 text-[#81C784]" />
-            <span>Voice Roster (أصوات الأطفال والمعلمين)</span>
+            <span>اختر الشخصيات للنطق المتزامن (Voice Selection)</span>
           </h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 font-semibold">Chorus Selection</span>
+            <span className="text-xs text-gray-500 font-semibold">الكورال المحدد:</span>
             <span className="px-2.5 py-0.5 bg-[#E8F5E9] text-[#2E7D32] rounded-full text-[10px] font-extrabold border border-green-200">
-              {selectedCharacters.length} / {characters.length} Selected
+              {selectedCharacters.length} / {characters.length} شخصية
             </span>
           </div>
         </div>
@@ -155,11 +176,15 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
           {characters.map((char) => {
             const isSelected = char.isSelected;
             const isTeacher = char.role === 'teacher';
+            const isActiveForControls = char.id === activeControlCharId;
+
             return (
               <div
                 key={char.id}
                 onClick={() => toggleCharacterSelection(char.id)}
                 className={`flex flex-col items-center p-3 rounded-2xl cursor-pointer transition-all border-2 text-center relative ${
+                  isActiveForControls ? 'ring-2 ring-purple-400' : ''
+                } ${
                   isSelected
                     ? isTeacher
                       ? 'bg-[#F3E5F5] border-[#AB47BC] shadow-sm transform scale-102'
@@ -189,6 +214,132 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
         </div>
       </div>
 
+      {/* Voice Control Panel (أدوات التحكم في الصوت مباشرة في الصفحة الرئيسية) */}
+      <div className="bg-gradient-to-br from-white to-purple-50/50 rounded-3xl p-6 shadow-sm border-2 border-purple-200 space-y-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-purple-100 pb-3">
+          <div className="flex items-center gap-3">
+            <div
+              style={{ backgroundColor: `${activeChar.color}25` }}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl border border-purple-200"
+            >
+              {activeChar.avatar}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-[#4527A0] text-base">
+                  أدوات ضبط الصوت للشخصية: {activeChar.arabicName} ({activeChar.name})
+                </h3>
+                <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
+                  {activeChar.role === 'teacher' ? 'معلم' : 'صوت طفل'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">
+                عدّل طبقة الصوت، سرعة التحدث، والمزاج الصوتي مباشرة وسيتم حفظ التعديلات فوراً.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              const sampleText = activeChar.role === 'teacher'
+                ? (activeChar.gender === 'female' ? 'مرحباً بكم، أنا المعلمة مريم' : 'أهلاً بكم، أنا المعلم أحمد')
+                : `مرحباً بك! أنا ${activeChar.arabicName}`;
+              speechEngine.speakGroupChorus(
+                sampleText,
+                [activeChar],
+                selectedDialect,
+                () => {},
+                () => {}
+              );
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#2E7D32] rounded-xl text-xs font-bold transition-all border border-green-200 shadow-xs"
+          >
+            <Volume2 className="w-4 h-4 text-green-700" />
+            <span>تجربة هذا الصوت (Test)</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Pitch Control (درجة الصوت: رفيع ↔ تخين) */}
+          <div className="space-y-2 bg-white p-4 rounded-2xl border border-purple-100">
+            <div className="flex justify-between text-xs font-extrabold text-gray-800">
+              <span className="flex items-center gap-1 text-[#7B1FA2]">
+                <Sliders className="w-4 h-4" />
+                <span>درجة الصوت (رفيع ↔ تخين / pitch)</span>
+              </span>
+              <span className="text-[#7B1FA2] font-black text-sm">{activeChar.pitch}x</span>
+            </div>
+            <input
+              type="range"
+              min="0.5"
+              max="2.0"
+              step="0.05"
+              value={activeChar.pitch}
+              onChange={(e) => handlePitchChange(activeChar.id, parseFloat(e.target.value))}
+              className="w-full h-2.5 bg-purple-100 rounded-lg appearance-none cursor-pointer accent-[#7B1FA2]"
+            />
+            <div className="flex justify-between text-[11px] text-gray-500 font-bold rtl:flex-row-reverse">
+              <span>0.5x (تخين / عميق)</span>
+              <span>1.0x (طبيعي)</span>
+              <span>2.0x (رفيع / طفولي)</span>
+            </div>
+          </div>
+
+          {/* Rate/Speed Control (سرعة الصوت) */}
+          <div className="space-y-2 bg-white p-4 rounded-2xl border border-sky-100">
+            <div className="flex justify-between text-xs font-extrabold text-gray-800">
+              <span className="flex items-center gap-1 text-[#0288D1]">
+                <Gauge className="w-4 h-4" />
+                <span>سرعة النطق (Speed / Rate)</span>
+              </span>
+              <span className="text-[#0288D1] font-black text-sm">{activeChar.speechRate}x</span>
+            </div>
+            <input
+              type="range"
+              min="0.5"
+              max="1.8"
+              step="0.05"
+              value={activeChar.speechRate}
+              onChange={(e) => handleRateChange(activeChar.id, parseFloat(e.target.value))}
+              className="w-full h-2.5 bg-sky-100 rounded-lg appearance-none cursor-pointer accent-[#0288D1]"
+            />
+            <div className="flex justify-between text-[11px] text-gray-500 font-bold rtl:flex-row-reverse">
+              <span>0.5x (بطيء جداً)</span>
+              <span>1.0x (طبيعي)</span>
+              <span>1.8x (سريع جداً)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Mood Preset Control (المزاج الانفعالي) */}
+        <div className="space-y-2 bg-white p-4 rounded-2xl border border-amber-100">
+          <div className="flex items-center gap-1.5 text-xs font-extrabold text-gray-800 mb-1">
+            <Smile className="w-4 h-4 text-amber-500" />
+            <span>المزاج الصوتي والمشاعر (Voice Emotion & Mood):</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+            {MOOD_PRESETS.map((m) => {
+              const isSelected = (activeChar.mood || 'happy') === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleMoodChange(activeChar.id, m.id)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                    isSelected
+                      ? 'bg-[#7B1FA2] text-white border-[#7B1FA2] shadow-sm transform scale-102'
+                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-purple-50 hover:border-purple-200'
+                  }`}
+                >
+                  <span>{m.emoji}</span>
+                  <span>{m.arabicName}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Waveform Visualizer Banner */}
       <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-[#F3E5F5] flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -198,7 +349,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
               {isSpeaking ? 'Playback Active (Chorus Live)' : 'Studio Standby'}
             </span>
             <span className="text-[10px] text-gray-500">
-              {isSpeaking ? `Voices: ${selectedCharacters.map(c => c.name).join(', ') || characters[0].name}` : 'Click Play Speech below'}
+              {isSpeaking ? `Voices: ${selectedCharacters.map(c => c.arabicName).join(', ') || activeChar.arabicName}` : 'اضغط تشغيل الصوت للبدء'}
             </span>
           </div>
         </div>
@@ -263,3 +414,4 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
     </div>
   );
 };
+
