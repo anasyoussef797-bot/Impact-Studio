@@ -42,19 +42,80 @@ function ttsProxyPlugin(): Plugin {
           }
 
           const urlsToTry = [
-            `https://api.streamelements.com/kappa/v2/speech?voice=${primaryVoice}&text=${encodeURIComponent(q)}`,
-            `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&q=${encodeURIComponent(q)}&tl=${encodeURIComponent(tl)}`,
-            `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encodeURIComponent(q)}&tl=${encodeURIComponent(tl)}`,
-            `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(q)}&le=${tl}`
+            // 1. Google Translate tw-ob with proper headers
+            {
+              url: `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(q)}&tl=${encodeURIComponent(tl)}&client=tw-ob`,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Referer': 'https://translate.google.com/',
+                'Accept': 'audio/mpeg, audio/*;q=0.9, */*;q=0.8'
+              }
+            },
+            // 2. StreamElements TTS
+            {
+              url: `https://api.streamelements.com/kappa/v2/speech?voice=${primaryVoice}&text=${encodeURIComponent(q)}`,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'audio/mp3, audio/*;q=0.9, */*;q=0.8'
+              }
+            },
+            // 3. Google Translate GTX
+            {
+              url: `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(q)}&tl=${encodeURIComponent(tl)}&client=gtx`,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Referer': 'https://translate.google.com/'
+              }
+            },
+            // 4. Youdao TTS
+            {
+              url: `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(q)}&le=${isArabic ? 'ar' : 'en'}`,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              }
+            }
           ];
 
-          for (const ttsUrl of urlsToTry) {
-            try {
-              const response = await fetch(ttsUrl, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          // Try SoundOfText API first for Arabic
+          try {
+            const sotRes = await fetch('https://soundoftext.com/api/v2/requests', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              },
+              body: JSON.stringify({
+                text: q,
+                voice: isArabic ? 'ar-SA' : (tl.includes('en') ? 'en-US' : 'ar-SA')
+              })
+            });
+
+            if (sotRes.ok) {
+              const sotData = await sotRes.json();
+              if (sotData.success && sotData.id) {
+                const fileUrl = `https://files.soundoftext.com/${sotData.id}.mp3`;
+                await new Promise((r) => setTimeout(r, 350));
+                const audioRes = await fetch(fileUrl);
+                if (audioRes.ok) {
+                  const arrayBuffer = await audioRes.arrayBuffer();
+                  if (arrayBuffer.byteLength > 200) {
+                    const buffer = Buffer.from(arrayBuffer);
+                    res.setHeader('Content-Type', 'audio/mpeg');
+                    res.setHeader('Access-Control-Allow-Origin', '*');
+                    res.setHeader('Cache-Control', 'public, max-age=86400');
+                    res.end(buffer);
+                    return;
+                  }
                 }
-              });
+              }
+            }
+          } catch (sotErr) {
+            console.warn('SoundOfText attempt failed, falling back:', sotErr);
+          }
+
+          for (const item of urlsToTry) {
+            try {
+              const response = await fetch(item.url, { headers: item.headers });
 
               if (response.ok) {
                 const arrayBuffer = await response.arrayBuffer();
