@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sliders, Sparkles, UserCheck, RotateCcw } from 'lucide-react';
 import { ChildCharacter } from '../types';
-import { INITIAL_CHARACTERS } from '../utils/speechSynthesis';
+import { INITIAL_CHARACTERS, speechEngine } from '../utils/speechSynthesis';
 
 interface CharactersViewProps {
   characters: ChildCharacter[];
@@ -143,6 +143,28 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                   <span>0.88x (Natural)</span>
                   <span>1.5x (Fast)</span>
                 </div>
+              </div>
+
+              {/* Individual Voice Test Button */}
+              <div className="pt-2 border-t border-gray-100 flex justify-end">
+                <button
+                  onClick={() => {
+                    const sampleText = isTeacher
+                      ? (char.gender === 'female' ? 'مرحباً بكم يا أبنائي، أنا المعلمة مريم' : 'أهلاً بكم يا طلابي، أنا المعلم أحمد')
+                      : `مرحباً بك! أنا ${char.arabicName}، أهلاً بك في الاستوديو`;
+                    speechEngine.speakGroupChorus(
+                      sampleText,
+                      [char],
+                      char.preferredLanguage,
+                      () => {},
+                      () => {}
+                    );
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#2E7D32] rounded-xl text-xs font-bold transition-all border border-green-200"
+                >
+                  <span>🔊</span>
+                  <span>تجربة الصوت (Test Voice)</span>
+                </button>
               </div>
 
             </div>
