@@ -520,38 +520,53 @@ export class WebStudioSpeechEngine {
         for (const sentence of sentences) {
           const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
           const encoded = encodeURIComponent(sentence);
-          const proxyUrl = `/api/tts?q=${encoded}&tl=${langCode}`;
+          const proxyUrl = `/api/tts?q=${encoded}&tl=${langCode}&gender=${char.gender || 'female'}&charId=${char.id}`;
           const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
+          const streamelementsUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${char.gender === 'male' ? 'Maged' : 'Zeina'}&text=${encoded}`;
 
           let decodedBuf: AudioBuffer | null = null;
 
-          // Attempt 1: Fetch via proxy endpoint /api/tts
+          // Attempt 1: Fetch via server proxy
           try {
             const resp = await fetch(proxyUrl);
             if (resp.ok) {
               const arrayBuf = await resp.arrayBuffer();
-              decodedBuf = await ctx.decodeAudioData(arrayBuf);
+              if (arrayBuf.byteLength > 200) {
+                decodedBuf = await ctx.decodeAudioData(arrayBuf);
+              }
             }
           } catch (e1) {
-            console.warn('Proxy fetch failed, trying direct:', e1);
+            console.warn('Proxy fetch failed:', e1);
           }
 
-          // Attempt 2: Direct fetch if proxy failed
+          // Attempt 2: Direct StreamElements
+          if (!decodedBuf) {
+            try {
+              const resp = await fetch(streamelementsUrl);
+              if (resp.ok) {
+                const arrayBuf = await resp.arrayBuffer();
+                if (arrayBuf.byteLength > 200) {
+                  decodedBuf = await ctx.decodeAudioData(arrayBuf);
+                }
+              }
+            } catch (e2) {
+              console.warn('StreamElements direct fetch failed:', e2);
+            }
+          }
+
+          // Attempt 3: Direct Google TTS
           if (!decodedBuf) {
             try {
               const resp = await fetch(directUrl);
               if (resp.ok) {
                 const arrayBuf = await resp.arrayBuffer();
-                decodedBuf = await ctx.decodeAudioData(arrayBuf);
+                if (arrayBuf.byteLength > 200) {
+                  decodedBuf = await ctx.decodeAudioData(arrayBuf);
+                }
               }
-            } catch (e2) {
-              console.warn('Direct fetch failed:', e2);
+            } catch (e3) {
+              console.warn('Google TTS direct fetch failed:', e3);
             }
-          }
-
-          // Attempt 3: Web Audio Synth AudioBuffer Fallback
-          if (!decodedBuf) {
-            decodedBuf = this.createSyntheticSpeechBuffer(ctx, sentence, char);
           }
 
           if (decodedBuf) {
@@ -561,28 +576,29 @@ export class WebStudioSpeechEngine {
       }
 
       if (chunks.length === 0) {
-        onProgress('عذراً، تعذر دمج الصوت، يرجى المحاولة مرة أخرى.');
+        onProgress('عذراً، تعذر جلب الملفات الصوتية، يرجى الاتصال بالإنترنت والمحاولة مجدداً.');
         return;
       }
 
       let totalDurationSec = 0;
       chunks.forEach((chunk) => {
-        totalDurationSec += chunk.buffer.duration / chunk.pitch;
+        totalDurationSec += chunk.buffer.duration / (chunk.pitch * chunk.rate);
       });
 
-      const sampleRate = chunks[0].buffer.sampleRate;
-      const totalSamples = Math.ceil(totalDurationSec * sampleRate);
+      const sampleRate = chunks[0].buffer.sampleRate || 44100;
+      const numOfChannels = chunks[0].buffer.numberOfChannels || 2;
+      const totalSamples = Math.max(sampleRate, Math.ceil(totalDurationSec * sampleRate));
 
-      const offlineCtx = new OfflineAudioContext(1, totalSamples, sampleRate);
+      const offlineCtx = new OfflineAudioContext(numOfChannels, totalSamples, sampleRate);
 
       let offset = 0;
       for (const chunk of chunks) {
         const source = offlineCtx.createBufferSource();
         source.buffer = chunk.buffer;
-        source.playbackRate.value = chunk.pitch;
+        source.playbackRate.value = chunk.pitch * chunk.rate;
         source.connect(offlineCtx.destination);
         source.start(offset);
-        offset += chunk.buffer.duration / chunk.pitch;
+        offset += chunk.buffer.duration / (chunk.pitch * chunk.rate);
       }
 
       const renderedBuffer = await offlineCtx.startRendering();
@@ -599,7 +615,7 @@ export class WebStudioSpeechEngine {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      onProgress('تم تنزيل الملف الصوتي بنجاح! (Downloaded Successfully)');
+      onProgress('تم تنزيل الملف الصوتي بوضوح ونقاء بنجاح!');
     } catch (err) {
       console.error('Error downloading audio file:', err);
       onProgress('حدث خطأ أثناء تنزيل الصوت.');
@@ -647,42 +663,14 @@ export class WebStudioSpeechEngine {
     while (offset < len) {
       for (let i = 0; i < numOfChan; i++) {
         sample = Math.max(-1, Math.min(1, channels[i][offset]));
-        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-        view.setInt16(pos, sample, true);
+        const val = sample < 0 ? Math.round(sample * 32768) : Math.round(sample * 32767);
+        view.setInt16(pos, val, true);
         pos += 2;
       }
       offset++;
     }
 
     return new Blob([buffer], { type: 'audio/wav' });
-  }
-
-  private createSyntheticSpeechBuffer(ctx: BaseAudioContext, text: string, char: ChildCharacter): AudioBuffer {
-    const sampleRate = ctx.sampleRate || 44100;
-    const { pitch, rate } = getEffectivePitchAndRate(char);
-    const duration = Math.max(1.2, (text.length * 0.08) / Math.max(0.5, rate));
-    const totalSamples = Math.ceil(duration * sampleRate);
-    const buffer = ctx.createBuffer(1, totalSamples, sampleRate);
-    const data = buffer.getChannelData(0);
-
-    const baseFreq = pitch >= 1.4 ? 340 : pitch <= 0.9 ? 140 : 230;
-
-    for (let i = 0; i < totalSamples; i++) {
-      const t = i / sampleRate;
-      const syllableDuration = 0.15;
-      const isSpeechBurst = (t % (syllableDuration * 2)) < syllableDuration;
-
-      if (isSpeechBurst) {
-        const freqMod = baseFreq + Math.sin(t * 30) * 40;
-        const wave = Math.sin(2 * Math.PI * freqMod * t) * 0.4 + Math.sin(2 * Math.PI * (freqMod * 1.5) * t) * 0.2;
-        const env = Math.sin((t % syllableDuration) / syllableDuration * Math.PI);
-        data[i] = wave * env * 0.5;
-      } else {
-        data[i] = 0;
-      }
-    }
-
-    return buffer;
   }
 
   public stop() {
