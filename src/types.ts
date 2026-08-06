@@ -15,11 +15,13 @@ export interface ChildCharacter {
   name: string;
   arabicName: string;
   avatar: string;
-  pitch: number; // e.g. 1.5f
+  pitch: number; // e.g. 1.5f for children, 0.85f for adult male
   speechRate: number; // e.g. 0.8f
   preferredLanguage: LanguageDialectId;
   color: string;
   staggerDelayMs: number; // for chorus offset
+  role?: 'child' | 'teacher';
+  gender?: 'female' | 'male';
 }
 
 export interface StudioSettings {

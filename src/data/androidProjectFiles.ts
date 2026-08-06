@@ -410,12 +410,36 @@ data class ChildCharacter(
                 name = "Sara",
                 arabicName = "سارة",
                 avatarEmoji = "👧🏼",
-                pitch = 1.50f,
-                speechRate = 0.87f,
+                pitch = 1.62f,
+                speechRate = 0.88f,
                 preferredDialect = LanguageDialect.ENGLISH,
                 colorHex = 0xFFE17055,
                 isSelected = false,
                 staggerDelayMs = 160L
+            ),
+            ChildCharacter(
+                id = "char_maryam",
+                name = "Ms. Maryam",
+                arabicName = "المعلمة مريم",
+                avatarEmoji = "👩‍🏫",
+                pitch = 1.15f,
+                speechRate = 0.95f,
+                preferredDialect = LanguageDialect.FUSHA_ARABIC,
+                colorHex = 0xFFEC407A,
+                isSelected = false,
+                staggerDelayMs = 200L
+            ),
+            ChildCharacter(
+                id = "char_ahmed",
+                name = "Mr. Ahmed",
+                arabicName = "المعلم أحمد",
+                avatarEmoji = "👨‍🏫",
+                pitch = 0.82f,
+                speechRate = 0.88f,
+                preferredDialect = LanguageDialect.FUSHA_ARABIC,
+                colorHex = 0xFF2E7D32,
+                isSelected = false,
+                staggerDelayMs = 240L
             )
         )
     }

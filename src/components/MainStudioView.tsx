@@ -115,39 +115,50 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
 
       {/* Voice Characters Roster */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#F1F8E9] space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <h2 className="text-xs font-extrabold text-gray-700 uppercase tracking-wide flex items-center gap-2">
             <Users className="w-4 h-4 text-[#81C784]" />
-            <span>Voice Characters (أصوات الأطفال)</span>
+            <span>Voice Roster (أصوات الأطفال والمعلمين)</span>
           </h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 font-semibold">Group Chorus</span>
+            <span className="text-xs text-gray-500 font-semibold">Chorus Selection</span>
             <span className="px-2.5 py-0.5 bg-[#E8F5E9] text-[#2E7D32] rounded-full text-[10px] font-extrabold border border-green-200">
-              {selectedCharacters.length} / 5 Selected
+              {selectedCharacters.length} / {characters.length} Selected
             </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
           {characters.map((char) => {
             const isSelected = char.isSelected;
+            const isTeacher = char.role === 'teacher';
             return (
               <div
                 key={char.id}
                 onClick={() => toggleCharacterSelection(char.id)}
-                className={`flex flex-col items-center p-3.5 rounded-2xl cursor-pointer transition-all border-2 text-center ${
+                className={`flex flex-col items-center p-3 rounded-2xl cursor-pointer transition-all border-2 text-center relative ${
                   isSelected
-                    ? 'bg-[#E1F5FE] border-[#4FC3F7] shadow-sm transform scale-102'
+                    ? isTeacher
+                      ? 'bg-[#F3E5F5] border-[#AB47BC] shadow-sm transform scale-102'
+                      : 'bg-[#E1F5FE] border-[#4FC3F7] shadow-sm transform scale-102'
                     : 'bg-white hover:bg-gray-50 border-gray-100 opacity-80 hover:opacity-100'
                 }`}
               >
+                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full mb-1 ${
+                  isTeacher ? 'bg-purple-100 text-purple-800' : 'bg-sky-100 text-sky-800'
+                }`}>
+                  {isTeacher ? (char.gender === 'female' ? 'معلمة' : 'معلم') : 'طفل'}
+                </span>
                 <div className="text-3xl mb-1">{char.avatar}</div>
-                <span className={`text-xs font-extrabold ${isSelected ? 'text-[#0288D1]' : 'text-gray-700'}`}>
+                <span className={`text-xs font-extrabold truncate w-full ${
+                  isSelected ? (isTeacher ? 'text-[#7B1FA2]' : 'text-[#0288D1]') : 'text-gray-700'
+                }`}>
                   {char.arabicName}
                 </span>
-                <span className="text-[10px] text-gray-400 font-semibold">{char.name}</span>
+                <span className="text-[10px] text-gray-400 font-semibold truncate w-full">{char.name}</span>
+                <span className="text-[9px] font-bold text-gray-500 mt-0.5">{char.pitch}x Pitch</span>
                 {isSelected && (
-                  <div className="w-1.5 h-1.5 bg-[#0288D1] rounded-full mt-1 animate-pulse" />
+                  <div className={`w-2 h-2 rounded-full mt-1 animate-pulse ${isTeacher ? 'bg-[#7B1FA2]' : 'bg-[#0288D1]'}`} />
                 )}
               </div>
             );

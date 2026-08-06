@@ -36,11 +36,11 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-500" />
             <h2 className="text-xl font-extrabold text-[#4527A0]">
-              Children Voice Roster (إدارة أصوات الأطفال)
+              Voice Roster Settings (إدارة نبرة الأصوات للأطفال والمعلمين)
             </h2>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Fine-tune vocal pitch (frequency) and speech tempo for each virtual child character.
+            Fine-tune vocal pitch (frequency) and speech tempo for children (high pitch 1.4x-1.85x) and teachers (0.8x-1.15x).
           </p>
         </div>
 
@@ -56,6 +56,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
       {/* Characters List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {characters.map((char) => {
+          const isTeacher = char.role === 'teacher';
           return (
             <div
               key={char.id}
@@ -71,11 +72,18 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                     {char.avatar}
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-[#2D3748] text-base">
-                      {char.arabicName} ({char.name})
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-[#2D3748] text-base">
+                        {char.arabicName} ({char.name})
+                      </h3>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        isTeacher ? 'bg-purple-100 text-purple-800' : 'bg-sky-100 text-sky-800'
+                      }`}>
+                        {isTeacher ? (char.gender === 'female' ? 'معلمة' : 'معلم') : 'طفل'}
+                      </span>
+                    </div>
                     <span className="text-[11px] font-extrabold text-[#7B1FA2]">
-                      Child Voice Profile #{char.id.replace('char_', '')}
+                      {isTeacher ? 'Teacher Voice Profile' : 'Child Voice Profile'} #{char.id.replace('char_', '')}
                     </span>
                   </div>
                 </div>
@@ -101,7 +109,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                 </div>
                 <input
                   type="range"
-                  min="1.0"
+                  min="0.5"
                   max="2.0"
                   step="0.05"
                   value={char.pitch}
@@ -109,9 +117,9 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                   className="w-full h-2 bg-purple-100 rounded-lg appearance-none cursor-pointer accent-[#7B1FA2]"
                 />
                 <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
+                  <span>0.5x (Adult Deep)</span>
                   <span>1.0x (Normal)</span>
-                  <span>1.5x (Child Default)</span>
-                  <span>2.0x (High Pitch)</span>
+                  <span>1.85x (Child High)</span>
                 </div>
               </div>
 
@@ -132,7 +140,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                 />
                 <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
                   <span>0.5x (Slow)</span>
-                  <span>0.85x (Natural Child)</span>
+                  <span>0.88x (Natural)</span>
                   <span>1.5x (Fast)</span>
                 </div>
               </div>
