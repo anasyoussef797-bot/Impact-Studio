@@ -1,4 +1,5 @@
 import { ChildCharacter, LanguageDialectId, VoiceMood } from '../types';
+import { enhanceArabicTextForSpeech } from './arabicUtils';
 
 export interface DialectOption {
   id: LanguageDialectId;
@@ -242,6 +243,10 @@ export class WebStudioSpeechEngine {
     });
 
     if (langVoices.length === 0) {
+      if (isArabic) {
+        // Strict guard: Do NOT return English system voices like Microsoft David for Arabic text
+        return null;
+      }
       langVoices = available;
     }
 
@@ -273,7 +278,7 @@ export class WebStudioSpeechEngine {
       }
     }
 
-    return langVoices[0] || available[0] || null;
+    return langVoices[0] || (isArabic ? null : available[0]) || null;
   }
 
   private splitTextIntoSentences(text: string): string[] {
@@ -369,8 +374,11 @@ export class WebStudioSpeechEngine {
       const sentence = sentences[sentenceIndex];
       sentenceIndex++;
 
-      if (this.synth && 'SpeechSynthesisUtterance' in window) {
-        this.speakWithSpeechSynthesis(sentence, char, dialectId, isArabic, () => {
+      const bestVoice = this.findBestVoice(dialectId, char);
+
+      // If no native Arabic voice exists on client machine, route to high quality audio fallback
+      if (this.synth && 'SpeechSynthesisUtterance' in window && (!isArabic || bestVoice !== null)) {
+        this.speakWithSpeechSynthesis(sentence, char, dialectId, isArabic, bestVoice, () => {
           speakNextSentence();
         });
       } else {
@@ -388,6 +396,7 @@ export class WebStudioSpeechEngine {
     char: ChildCharacter,
     dialectId: LanguageDialectId,
     isArabic: boolean,
+    bestVoice: SpeechSynthesisVoice | null,
     onNext: () => void
   ) {
     if (!this.synth) {
@@ -400,10 +409,10 @@ export class WebStudioSpeechEngine {
         this.synth.resume();
       }
 
-      const utterance = new SpeechSynthesisUtterance(sentence);
+      const vocalizedText = isArabic ? enhanceArabicTextForSpeech(sentence) : sentence;
+      const utterance = new SpeechSynthesisUtterance(vocalizedText);
       const dialect = LANGUAGE_DIALECTS.find((d) => d.id === dialectId) || LANGUAGE_DIALECTS[0];
 
-      const bestVoice = this.findBestVoice(dialectId, char);
       if (bestVoice) {
         utterance.voice = bestVoice;
         utterance.lang = bestVoice.lang;
@@ -459,16 +468,17 @@ export class WebStudioSpeechEngine {
     }
 
     try {
+      const vocalizedText = isArabic ? enhanceArabicTextForSpeech(sentence) : sentence;
       const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
-      const encoded = encodeURIComponent(sentence);
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
+      const encoded = encodeURIComponent(vocalizedText);
+      const url = `/api/tts?q=${encoded}&tl=${langCode}&gender=${char.gender || 'female'}&charId=${char.id}`;
 
       const audio = new Audio();
       audio.crossOrigin = 'anonymous';
       audio.src = url;
 
-      const { pitch } = getEffectivePitchAndRate(char);
-      audio.playbackRate = pitch;
+      const { pitch, rate } = getEffectivePitchAndRate(char);
+      audio.playbackRate = Math.min(1.5, Math.max(0.7, rate));
 
       this.activeAudios.push(audio);
 
@@ -481,7 +491,14 @@ export class WebStudioSpeechEngine {
       };
 
       audio.onended = finish;
-      audio.onerror = finish;
+      audio.onerror = () => {
+        // Fallback to direct URL if express proxy fails
+        const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
+        const fallbackAudio = new Audio(directUrl);
+        fallbackAudio.onended = finish;
+        fallbackAudio.onerror = finish;
+        fallbackAudio.play().catch(finish);
+      };
 
       audio.play().catch(() => finish());
     } catch (e) {
@@ -518,11 +535,11 @@ export class WebStudioSpeechEngine {
         const { pitch, rate } = getEffectivePitchAndRate(char);
 
         for (const sentence of sentences) {
+          const vocalizedText = isArabic ? enhanceArabicTextForSpeech(sentence) : sentence;
           const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
-          const encoded = encodeURIComponent(sentence);
+          const encoded = encodeURIComponent(vocalizedText);
           const proxyUrl = `/api/tts?q=${encoded}&tl=${langCode}&gender=${char.gender || 'female'}&charId=${char.id}`;
           const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
-          const streamelementsUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${char.gender === 'male' ? 'Maged' : 'Zeina'}&text=${encoded}`;
 
           let decodedBuf: AudioBuffer | null = null;
 
@@ -539,22 +556,7 @@ export class WebStudioSpeechEngine {
             console.warn('Proxy fetch failed:', e1);
           }
 
-          // Attempt 2: Direct StreamElements
-          if (!decodedBuf) {
-            try {
-              const resp = await fetch(streamelementsUrl);
-              if (resp.ok) {
-                const arrayBuf = await resp.arrayBuffer();
-                if (arrayBuf.byteLength > 200) {
-                  decodedBuf = await ctx.decodeAudioData(arrayBuf);
-                }
-              }
-            } catch (e2) {
-              console.warn('StreamElements direct fetch failed:', e2);
-            }
-          }
-
-          // Attempt 3: Direct Google TTS
+          // Attempt 2: Direct Google TTS
           if (!decodedBuf) {
             try {
               const resp = await fetch(directUrl);
@@ -564,8 +566,8 @@ export class WebStudioSpeechEngine {
                   decodedBuf = await ctx.decodeAudioData(arrayBuf);
                 }
               }
-            } catch (e3) {
-              console.warn('Google TTS direct fetch failed:', e3);
+            } catch (e2) {
+              console.warn('Google TTS direct fetch failed:', e2);
             }
           }
 
@@ -576,13 +578,13 @@ export class WebStudioSpeechEngine {
       }
 
       if (chunks.length === 0) {
-        onProgress('عذراً، تعذر جلب الملفات الصوتية، يرجى الاتصال بالإنترنت والمحاولة مجدداً.');
+        onProgress('عذراً، تعذر جلب الملفات الصوتية، يرجى التأكد من الاتصال بالإنترنت والمحاولة مجدداً.');
         return;
       }
 
       let totalDurationSec = 0;
       chunks.forEach((chunk) => {
-        totalDurationSec += chunk.buffer.duration / (chunk.pitch * chunk.rate);
+        totalDurationSec += chunk.buffer.duration / Math.max(0.5, chunk.rate);
       });
 
       const sampleRate = chunks[0].buffer.sampleRate || 44100;
@@ -595,10 +597,10 @@ export class WebStudioSpeechEngine {
       for (const chunk of chunks) {
         const source = offlineCtx.createBufferSource();
         source.buffer = chunk.buffer;
-        source.playbackRate.value = chunk.pitch * chunk.rate;
+        source.playbackRate.value = Math.min(1.5, Math.max(0.7, chunk.rate));
         source.connect(offlineCtx.destination);
         source.start(offset);
-        offset += chunk.buffer.duration / (chunk.pitch * chunk.rate);
+        offset += chunk.buffer.duration / Math.max(0.5, chunk.rate);
       }
 
       const renderedBuffer = await offlineCtx.startRendering();
