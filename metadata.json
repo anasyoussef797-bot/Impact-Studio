@@ -1,0 +1,6 @@
+{
+  "name": "Impact Studio",
+  "description": "Professional Children Text-to-Speech Studio & Native Android Jetpack Compose App by Impact Hub Egypt",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
