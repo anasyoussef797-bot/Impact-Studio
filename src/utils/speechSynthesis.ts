@@ -1,4 +1,4 @@
-import { ChildCharacter, LanguageDialectId } from '../types';
+import { ChildCharacter, LanguageDialectId, VoiceMood } from '../types';
 
 export interface DialectOption {
   id: LanguageDialectId;
@@ -9,6 +9,24 @@ export interface DialectOption {
   sampleText: string;
   keywords: string[];
 }
+
+export interface MoodOption {
+  id: VoiceMood;
+  name: string;
+  arabicName: string;
+  emoji: string;
+  pitchOffset: number;
+  rateOffset: number;
+}
+
+export const MOOD_PRESETS: MoodOption[] = [
+  { id: 'happy', name: 'Happy', arabicName: 'فرح / سعيد', emoji: '😊', pitchOffset: 0.12, rateOffset: 0.05 },
+  { id: 'enthusiastic', name: 'Enthusiastic', arabicName: 'حماسي', emoji: '🚀', pitchOffset: 0.20, rateOffset: 0.12 },
+  { id: 'playful', name: 'Playful', arabicName: 'مرح / لعوب', emoji: '🎈', pitchOffset: 0.22, rateOffset: 0.08 },
+  { id: 'sad', name: 'Sad', arabicName: 'حزين', emoji: '😢', pitchOffset: -0.22, rateOffset: -0.20 },
+  { id: 'calm', name: 'Calm', arabicName: 'هادئ', emoji: '🧘‍♂️', pitchOffset: -0.10, rateOffset: -0.10 },
+  { id: 'storytelling', name: 'Storytelling', arabicName: 'حكواتي / سرد', emoji: '📖', pitchOffset: 0.05, rateOffset: -0.05 },
+];
 
 export const LANGUAGE_DIALECTS: DialectOption[] = [
   {
@@ -73,8 +91,9 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Lulu',
     arabicName: 'لولو',
     avatar: '👧',
-    pitch: 1.42, // Cute, bright young girl
-    speechRate: 0.96,
+    pitch: 1.70, // Authentic high child girl voice
+    speechRate: 0.95,
+    mood: 'happy',
     preferredLanguage: 'gulf_ar',
     color: '#FD79A8',
     staggerDelayMs: 0,
@@ -86,8 +105,9 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Rashed',
     arabicName: 'راشد',
     avatar: '👦',
-    pitch: 1.18, // Energetic young boy
-    speechRate: 0.90,
+    pitch: 1.55, // Energetic child boy voice
+    speechRate: 0.92,
+    mood: 'enthusiastic',
     preferredLanguage: 'gulf_ar',
     color: '#0984E3',
     staggerDelayMs: 40,
@@ -99,8 +119,9 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Noor',
     arabicName: 'نور',
     avatar: '👧🏽',
-    pitch: 1.30, // Sweet, gentle girl voice
-    speechRate: 0.88,
+    pitch: 1.62, // Sweet kid girl voice
+    speechRate: 0.90,
+    mood: 'playful',
     preferredLanguage: 'egyptian_ar',
     color: '#00CEC9',
     staggerDelayMs: 80,
@@ -112,8 +133,9 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Ali',
     arabicName: 'علي',
     avatar: '👦🏻',
-    pitch: 1.08, // Calm, deliberate boy voice
-    speechRate: 0.82,
+    pitch: 1.48, // Calm child boy voice
+    speechRate: 0.85,
+    mood: 'calm',
     preferredLanguage: 'fusha_ar',
     color: '#6C5CE7',
     staggerDelayMs: 120,
@@ -125,8 +147,9 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Sara',
     arabicName: 'سارة',
     avatar: '👧🏼',
-    pitch: 1.50, // Playful, high little girl voice
-    speechRate: 1.02,
+    pitch: 1.75, // Playful high child girl voice
+    speechRate: 0.98,
+    mood: 'happy',
     preferredLanguage: 'english',
     color: '#E17055',
     staggerDelayMs: 160,
@@ -138,8 +161,9 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Ms. Maryam',
     arabicName: 'المعلمة مريم',
     avatar: '👩‍🏫',
-    pitch: 1.02, // Clear adult female teacher voice
+    pitch: 1.05, // Clear adult female teacher voice
     speechRate: 0.95,
+    mood: 'storytelling',
     preferredLanguage: 'fusha_ar',
     color: '#EC407A',
     staggerDelayMs: 200,
@@ -151,8 +175,9 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Mr. Ahmed',
     arabicName: 'المعلم أحمد',
     avatar: '👨‍🏫',
-    pitch: 0.65, // Deep adult male teacher voice
+    pitch: 0.78, // Deep adult male teacher voice
     speechRate: 0.85,
+    mood: 'calm',
     preferredLanguage: 'fusha_ar',
     color: '#2E7D32',
     staggerDelayMs: 240,
@@ -161,15 +186,11 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
   }
 ];
 
-export function getPlaybackRateForChar(char: ChildCharacter): number {
-  if (char.id === 'char_lulu') return 1.24;
-  if (char.id === 'char_noor') return 1.14;
-  if (char.id === 'char_sara') return 1.32;
-  if (char.id === 'char_rashed') return 1.08;
-  if (char.id === 'char_ali') return 0.98;
-  if (char.id === 'char_maryam') return 1.00;
-  if (char.id === 'char_ahmed') return 0.82;
-  return char.pitch || 1.0;
+export function getEffectivePitchAndRate(char: ChildCharacter): { pitch: number; rate: number } {
+  const mood = MOOD_PRESETS.find((m) => m.id === (char.mood || 'happy')) || MOOD_PRESETS[0];
+  const finalPitch = Math.min(2.0, Math.max(0.5, char.pitch + mood.pitchOffset));
+  const finalRate = Math.min(1.8, Math.max(0.5, char.speechRate + mood.rateOffset));
+  return { pitch: finalPitch, rate: finalRate };
 }
 
 export class WebStudioSpeechEngine {
@@ -212,7 +233,6 @@ export class WebStudioSpeechEngine {
     const femaleKeywords = ['zira', 'laila', 'salma', 'zeina', 'hoda', 'mariam', 'samantha', 'victoria', 'female', 'woman', 'kore', 'yuna'];
     const maleKeywords = ['maged', 'tarik', 'tariq', 'nizar', 'naayf', 'mehdi', 'male', 'man', 'david', 'george', 'alex', 'adam', 'thomas', 'stefan', 'mark'];
 
-    // Filter by language prefix
     let langVoices = available.filter((v) => {
       const vLang = v.lang.toLowerCase();
       if (isArabic) {
@@ -232,7 +252,6 @@ export class WebStudioSpeechEngine {
       );
 
       if (maleCandidates.length > 0) {
-        // Differentiate Ali vs Rashed if multiple male voices exist
         if (char.id === 'char_ali' && maleCandidates.length > 1) {
           return maleCandidates[1];
         }
@@ -244,7 +263,6 @@ export class WebStudioSpeechEngine {
       );
 
       if (femaleCandidates.length > 0) {
-        // Differentiate Lulu, Noor, Sara if multiple female voices exist
         if (char.id === 'char_noor' && femaleCandidates.length > 1) {
           return femaleCandidates[1];
         }
@@ -258,9 +276,6 @@ export class WebStudioSpeechEngine {
     return langVoices[0] || available[0] || null;
   }
 
-  /**
-   * Split text into clean short sentences
-   */
   private splitTextIntoSentences(text: string): string[] {
     const clean = text.trim();
     if (!clean) return [];
@@ -283,9 +298,6 @@ export class WebStudioSpeechEngine {
     return result.length > 0 ? result : [clean];
   }
 
-  /**
-   * Main speech function for single character or group chorus
-   */
   public speakGroupChorus(
     text: string,
     characters: ChildCharacter[],
@@ -339,9 +351,6 @@ export class WebStudioSpeechEngine {
     });
   }
 
-  /**
-   * Play character speech sequentially
-   */
   private playCharacterSequential(
     sentences: string[],
     char: ChildCharacter,
@@ -374,9 +383,6 @@ export class WebStudioSpeechEngine {
     speakNextSentence();
   }
 
-  /**
-   * Speak sentence using Web Speech API with distinct character pitch & rate
-   */
   private speakWithSpeechSynthesis(
     sentence: string,
     char: ChildCharacter,
@@ -405,9 +411,9 @@ export class WebStudioSpeechEngine {
         utterance.lang = isArabic ? 'ar-SA' : dialect.localeCode;
       }
 
-      // Apply distinct pitch and rate per character
-      utterance.pitch = char.pitch;
-      utterance.rate = char.speechRate;
+      const { pitch, rate } = getEffectivePitchAndRate(char);
+      utterance.pitch = pitch;
+      utterance.rate = rate;
 
       let hasEnded = false;
       const markNext = () => {
@@ -440,9 +446,6 @@ export class WebStudioSpeechEngine {
     }
   }
 
-  /**
-   * Fallback using online Audio stream with custom per-character playback rate
-   */
   private speakWithAudioFallback(
     sentence: string,
     char: ChildCharacter,
@@ -464,8 +467,8 @@ export class WebStudioSpeechEngine {
       audio.crossOrigin = 'anonymous';
       audio.src = url;
 
-      // Apply distinct playback rate for each character
-      audio.playbackRate = getPlaybackRateForChar(char);
+      const { pitch } = getEffectivePitchAndRate(char);
+      audio.playbackRate = pitch;
 
       this.activeAudios.push(audio);
 
@@ -487,9 +490,6 @@ export class WebStudioSpeechEngine {
     }
   }
 
-  /**
-   * Export / Download Speech as downloadable WAV/MP3 file with distinct character pitch shifting
-   */
   public async downloadAudioFile(
     text: string,
     characters: ChildCharacter[],
@@ -507,6 +507,7 @@ export class WebStudioSpeechEngine {
 
       interface Chunk {
         buffer: AudioBuffer;
+        pitch: number;
         rate: number;
       }
       const chunks: Chunk[] = [];
@@ -514,7 +515,7 @@ export class WebStudioSpeechEngine {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
 
       for (const char of characters) {
-        const rate = getPlaybackRateForChar(char);
+        const { pitch, rate } = getEffectivePitchAndRate(char);
 
         for (const sentence of sentences) {
           const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
@@ -525,7 +526,7 @@ export class WebStudioSpeechEngine {
             const resp = await fetch(ttsUrl);
             const arrayBuf = await resp.arrayBuffer();
             const decodedBuf = await ctx.decodeAudioData(arrayBuf);
-            chunks.push({ buffer: decodedBuf, rate });
+            chunks.push({ buffer: decodedBuf, pitch, rate });
           } catch (e) {
             console.warn('Could not fetch TTS audio chunk for download:', e);
           }
@@ -537,10 +538,9 @@ export class WebStudioSpeechEngine {
         return;
       }
 
-      // Calculate total audio duration taking playback rates into account
       let totalDurationSec = 0;
       chunks.forEach((chunk) => {
-        totalDurationSec += chunk.buffer.duration / chunk.rate;
+        totalDurationSec += chunk.buffer.duration / chunk.pitch;
       });
 
       const sampleRate = chunks[0].buffer.sampleRate;
@@ -552,15 +552,14 @@ export class WebStudioSpeechEngine {
       for (const chunk of chunks) {
         const source = offlineCtx.createBufferSource();
         source.buffer = chunk.buffer;
-        source.playbackRate.value = chunk.rate;
+        source.playbackRate.value = chunk.pitch;
         source.connect(offlineCtx.destination);
         source.start(offset);
-        offset += chunk.buffer.duration / chunk.rate;
+        offset += chunk.buffer.duration / chunk.pitch;
       }
 
       const renderedBuffer = await offlineCtx.startRendering();
 
-      // Convert rendered buffer to WAV Blob
       const wavBlob = this.bufferToWave(renderedBuffer, renderedBuffer.length);
       const url = URL.createObjectURL(wavBlob);
 
@@ -580,9 +579,6 @@ export class WebStudioSpeechEngine {
     }
   }
 
-  /**
-   * Helper to encode AudioBuffer to downloadable WAV Blob
-   */
   private bufferToWave(abuffer: AudioBuffer, len: number): Blob {
     const numOfChan = abuffer.numberOfChannels;
     const length = len * numOfChan * 2 + 44;
@@ -634,9 +630,6 @@ export class WebStudioSpeechEngine {
     return new Blob([buffer], { type: 'audio/wav' });
   }
 
-  /**
-   * Stop all active speech
-   */
   public stop() {
     this.isStopped = true;
 

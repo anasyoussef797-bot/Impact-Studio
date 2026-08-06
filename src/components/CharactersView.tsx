@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Sliders, Sparkles, UserCheck, RotateCcw } from 'lucide-react';
-import { ChildCharacter } from '../types';
-import { INITIAL_CHARACTERS, speechEngine } from '../utils/speechSynthesis';
+import React from 'react';
+import { Sliders, Sparkles, RotateCcw, HeartHandshake, Gauge, Smile } from 'lucide-react';
+import { ChildCharacter, VoiceMood } from '../types';
+import { INITIAL_CHARACTERS, MOOD_PRESETS, speechEngine } from '../utils/speechSynthesis';
 
 interface CharactersViewProps {
   characters: ChildCharacter[];
@@ -9,8 +9,6 @@ interface CharactersViewProps {
 }
 
 export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setCharacters }) => {
-  const [editingId, setEditingId] = useState<string | null>(null);
-
   const handlePitchChange = (id: string, newPitch: number) => {
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, pitch: parseFloat(newPitch.toFixed(2)) } : c))
@@ -20,6 +18,12 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
   const handleRateChange = (id: string, newRate: number) => {
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, speechRate: parseFloat(newRate.toFixed(2)) } : c))
+    );
+  };
+
+  const handleMoodChange = (id: string, newMood: VoiceMood) => {
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, mood: newMood } : c))
     );
   };
 
@@ -36,11 +40,11 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-500" />
             <h2 className="text-xl font-extrabold text-[#4527A0]">
-              Voice Roster Settings (إدارة نبرة الأصوات للأطفال والمعلمين)
+              إعدادات وبصمة الأصوات للأطفال والمعلمين (Voice Tone & Mood)
             </h2>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Fine-tune vocal pitch (frequency) and speech tempo for children (high pitch 1.4x-1.85x) and teachers (0.8x-1.15x).
+            تحكم كامل في نبرة الصوت (رفيع / تخين)، سرعة القراءة، والمزاج الصوتي (حماسي، فرح، حزين، مرح، هادئ، حكواتي).
           </p>
         </div>
 
@@ -49,18 +53,20 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
           className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-[#FFFBF0] hover:bg-amber-100/60 text-[#7B1FA2] text-xs font-extrabold border border-amber-200 transition-all"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Defaults</span>
+          <span>استعادة الضبط الافتراضي (Reset Defaults)</span>
         </button>
       </div>
 
       {/* Characters List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {characters.map((char) => {
           const isTeacher = char.role === 'teacher';
+          const currentMood = char.mood || 'happy';
+
           return (
             <div
               key={char.id}
-              className="bg-white rounded-3xl p-6 border-2 border-[#E1F5FE] shadow-sm space-y-4 transition-all hover:shadow-md"
+              className="bg-white rounded-3xl p-6 border-2 border-[#E1F5FE] shadow-sm space-y-5 transition-all hover:shadow-md"
             >
               {/* Card Top Header */}
               <div className="flex items-center justify-between border-b border-gray-100 pb-3">
@@ -76,14 +82,14 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                       <h3 className="font-extrabold text-[#2D3748] text-base">
                         {char.arabicName} ({char.name})
                       </h3>
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                         isTeacher ? 'bg-purple-100 text-purple-800' : 'bg-sky-100 text-sky-800'
                       }`}>
                         {isTeacher ? (char.gender === 'female' ? 'معلمة' : 'معلم') : 'طفل'}
                       </span>
                     </div>
-                    <span className="text-[11px] font-extrabold text-[#7B1FA2]">
-                      {isTeacher ? 'Teacher Voice Profile' : 'Child Voice Profile'} #{char.id.replace('char_', '')}
+                    <span className="text-[11px] font-bold text-[#7B1FA2]">
+                      {isTeacher ? 'صوت شخصية بالغ' : 'صوت شخصية طفل'} #{char.id.replace('char_', '')}
                     </span>
                   </div>
                 </div>
@@ -93,17 +99,17 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                     style={{ backgroundColor: char.color, color: '#fff' }}
                     className="text-[10px] font-extrabold px-3 py-1 rounded-full shadow-xs uppercase tracking-wide"
                   >
-                    Pitch {char.pitch}x
+                    {char.pitch >= 1.4 ? 'طفل رفيع' : char.pitch <= 0.9 ? 'عميق / تخين' : 'طبيعي'}
                   </span>
                 </div>
               </div>
 
-              {/* Pitch Slider */}
+              {/* Pitch Slider (رفيع / تخين) */}
               <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-extrabold text-gray-700">
+                <div className="flex justify-between text-xs font-extrabold text-gray-800">
                   <span className="flex items-center gap-1">
                     <Sliders className="w-3.5 h-3.5 text-[#7B1FA2]" />
-                    <span>Voice Pitch (نبرة الصوت)</span>
+                    <span>درجة الصوت (رفيع ↔ تخين/عميق)</span>
                   </span>
                   <span className="text-[#7B1FA2] font-black">{char.pitch}x</span>
                 </div>
@@ -116,32 +122,64 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                   onChange={(e) => handlePitchChange(char.id, parseFloat(e.target.value))}
                   className="w-full h-2 bg-purple-100 rounded-lg appearance-none cursor-pointer accent-[#7B1FA2]"
                 />
-                <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
-                  <span>0.5x (Adult Deep)</span>
-                  <span>1.0x (Normal)</span>
-                  <span>1.85x (Child High)</span>
+                <div className="flex justify-between text-[10px] text-gray-500 font-bold rtl:flex-row-reverse">
+                  <span>0.5x (تخين / رجل)</span>
+                  <span>1.0x (طبيعي)</span>
+                  <span>2.0x (طفل رفيع جداً)</span>
                 </div>
               </div>
 
-              {/* Rate / Speed Slider */}
+              {/* Rate / Speed Slider (سرعة الصوت) */}
               <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-extrabold text-gray-700">
-                  <span>Speech Rate (سرعة النطق)</span>
+                <div className="flex justify-between text-xs font-extrabold text-gray-800">
+                  <span className="flex items-center gap-1">
+                    <Gauge className="w-3.5 h-3.5 text-[#0288D1]" />
+                    <span>سرعة النطق والتحدث (Speed)</span>
+                  </span>
                   <span className="text-[#0288D1] font-black">{char.speechRate}x</span>
                 </div>
                 <input
                   type="range"
                   min="0.5"
-                  max="1.5"
+                  max="1.8"
                   step="0.05"
                   value={char.speechRate}
                   onChange={(e) => handleRateChange(char.id, parseFloat(e.target.value))}
                   className="w-full h-2 bg-sky-100 rounded-lg appearance-none cursor-pointer accent-[#0288D1]"
                 />
-                <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
-                  <span>0.5x (Slow)</span>
-                  <span>0.88x (Natural)</span>
-                  <span>1.5x (Fast)</span>
+                <div className="flex justify-between text-[10px] text-gray-500 font-bold rtl:flex-row-reverse">
+                  <span>0.5x (بطيء جداً)</span>
+                  <span>1.0x (طبيعي)</span>
+                  <span>1.8x (سريع جداً)</span>
+                </div>
+              </div>
+
+              {/* Voice Mood Selector (المزاج / نبرة المشاعر) */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1 text-xs font-extrabold text-gray-800">
+                  <Smile className="w-3.5 h-3.5 text-amber-500" />
+                  <span>المزاج الصوتي ونبرة الانفعال (Voice Mood):</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {MOOD_PRESETS.map((m) => {
+                    const isSelected = currentMood === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleMoodChange(char.id, m.id)}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all ${
+                          isSelected
+                            ? 'bg-[#7B1FA2] text-white border-[#7B1FA2] shadow-xs'
+                            : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-purple-50 hover:border-purple-200'
+                        }`}
+                      >
+                        <span>{m.emoji}</span>
+                        <span>{m.arabicName}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -160,10 +198,10 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                       () => {}
                     );
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#2E7D32] rounded-xl text-xs font-bold transition-all border border-green-200"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#2E7D32] rounded-xl text-xs font-extrabold transition-all border border-green-200 shadow-xs active:scale-95"
                 >
                   <span>🔊</span>
-                  <span>تجربة الصوت (Test Voice)</span>
+                  <span>تجربة الصوت بالتعديل الجديد</span>
                 </button>
               </div>
 

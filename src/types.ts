@@ -1,5 +1,7 @@
 export type LanguageDialectId = 'gulf_ar' | 'fusha_ar' | 'egyptian_ar' | 'english' | 'french' | 'german';
 
+export type VoiceMood = 'happy' | 'enthusiastic' | 'playful' | 'sad' | 'calm' | 'storytelling';
+
 export interface LanguageDialect {
   id: LanguageDialectId;
   name: string;
@@ -15,8 +17,9 @@ export interface ChildCharacter {
   name: string;
   arabicName: string;
   avatar: string;
-  pitch: number; // e.g. 1.5f for children, 0.85f for adult male
-  speechRate: number; // e.g. 0.8f
+  pitch: number; // 0.5 (تخين/عميق) to 2.0 (رفيع/طفولي)
+  speechRate: number; // 0.5 (بطيء) to 1.8 (سريع)
+  mood?: VoiceMood; // المزاج أو النبرة العاطفية
   preferredLanguage: LanguageDialectId;
   color: string;
   staggerDelayMs: number; // for chorus offset
