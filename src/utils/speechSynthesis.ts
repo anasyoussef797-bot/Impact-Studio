@@ -176,8 +176,8 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     name: 'Mr. Ahmed',
     arabicName: 'المعلم أحمد',
     avatar: '👨‍🏫',
-    pitch: 0.78, // Deep adult male teacher voice
-    speechRate: 0.85,
+    pitch: 1.0, // Clear, natural adult male teacher voice
+    speechRate: 0.95,
     mood: 'calm',
     preferredLanguage: 'fusha_ar',
     color: '#2E7D32',
@@ -570,18 +570,13 @@ export class WebStudioSpeechEngine {
         const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
 
-        const { pitch, rate } = getEffectivePitchAndRate(char);
-        let characterPitchScale = 1.0;
+        const { rate } = getEffectivePitchAndRate(char);
+        let effectiveRate = Math.min(1.25, Math.max(0.85, rate));
 
-        if (char.role === 'teacher') {
-          characterPitchScale = char.gender === 'male' ? 0.88 : 0.98;
-        } else if (char.gender === 'female') {
-          characterPitchScale = 1.22; // High-pitched child girl
-        } else {
-          characterPitchScale = 1.12; // Youthful child boy
+        if (char.role === 'teacher' && char.gender === 'male') {
+          effectiveRate = 1.0; // Keep natural male pitch & speed for Teacher Ahmed
         }
 
-        const effectiveRate = Math.min(1.5, Math.max(0.7, characterPitchScale * (pitch / 1.5) * rate));
         source.playbackRate.value = effectiveRate;
 
         source.connect(ctx.destination);

@@ -148,7 +148,9 @@ export async function handleTTSRequest(req: any, res: any) {
       if (charId === 'char_lulu') fallbackVoice = 'Laila';
       else if (charId === 'char_noor') fallbackVoice = 'Salma';
       else if (charId === 'char_maryam') fallbackVoice = 'Zeina';
+      else if (charId === 'char_sara') fallbackVoice = 'Hala';
       else if (charId === 'char_rashed') fallbackVoice = 'Tarik';
+      else if (charId === 'char_ali') fallbackVoice = 'Tarik';
       else if (charId === 'char_ahmed') fallbackVoice = 'Maged';
       else fallbackVoice = isMale ? 'Maged' : 'Zeina';
     } else if (tl.includes('en')) {
@@ -157,18 +159,18 @@ export async function handleTTSRequest(req: any, res: any) {
 
     const externalProviders = [
       {
+        url: `https://api.streamelements.com/kappa/v2/speech?voice=${fallbackVoice}&text=${encodeURIComponent(q)}`,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'audio/mp3, audio/*;q=0.9, */*;q=0.8'
+        }
+      },
+      {
         url: `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(q)}&tl=${encodeURIComponent(tl)}&client=tw-ob`,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Referer': 'https://translate.google.com/',
           'Accept': 'audio/mpeg, audio/*;q=0.9, */*;q=0.8'
-        }
-      },
-      {
-        url: `https://api.streamelements.com/kappa/v2/speech?voice=${fallbackVoice}&text=${encodeURIComponent(q)}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'audio/mp3, audio/*;q=0.9, */*;q=0.8'
         }
       },
       {
