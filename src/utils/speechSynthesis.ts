@@ -89,8 +89,8 @@ export const LANGUAGE_DIALECTS: DialectOption[] = [
 export const INITIAL_CHARACTERS: ChildCharacter[] = [
   {
     id: 'char_lulu',
-    name: 'Lulu',
-    arabicName: 'لولو',
+    name: 'Foxy',
+    arabicName: 'فوكسي',
     avatar: '👧',
     pitch: 1.70, // Authentic high child girl voice
     speechRate: 0.95,
@@ -103,8 +103,8 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
   },
   {
     id: 'char_rashed',
-    name: 'Rashed',
-    arabicName: 'راشد',
+    name: 'Spark',
+    arabicName: 'سبارك',
     avatar: '👦',
     pitch: 1.55, // Energetic child boy voice
     speechRate: 0.92,
@@ -117,8 +117,8 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
   },
   {
     id: 'char_noor',
-    name: 'Noor',
-    arabicName: 'نور',
+    name: 'Talia',
+    arabicName: 'تاليا',
     avatar: '👧🏽',
     pitch: 1.62, // Sweet kid girl voice
     speechRate: 0.90,
@@ -131,8 +131,8 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
   },
   {
     id: 'char_ali',
-    name: 'Ali',
-    arabicName: 'علي',
+    name: 'Adam',
+    arabicName: 'آدم',
     avatar: '👦🏻',
     pitch: 1.48, // Calm child boy voice
     speechRate: 0.85,
@@ -145,8 +145,8 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
   },
   {
     id: 'char_sara',
-    name: 'Sara',
-    arabicName: 'سارة',
+    name: 'Daifa',
+    arabicName: 'ضيفه',
     avatar: '👧🏼',
     pitch: 1.75, // Playful high child girl voice
     speechRate: 0.98,

@@ -200,11 +200,11 @@ dependencies {
     <string name="dialect_german">German</string>
 
     <!-- Character Names -->
-    <string name="char_lulu">Lulu (لولو)</string>
-    <string name="char_rashed">Rashed (راشد)</string>
-    <string name="char_noor">Noor (نور)</string>
-    <string name="char_ali">Ali (علي)</string>
-    <string name="char_sara">Sara (سارة)</string>
+    <string name="char_lulu">Foxy (فوكسي)</string>
+    <string name="char_rashed">Spark (سبارك)</string>
+    <string name="char_noor">Talia (تاليا)</string>
+    <string name="char_ali">Adam (آدم)</string>
+    <string name="char_sara">Daifa (ضيفه)</string>
 
     <!-- Controls -->
     <string name="pitch_label">Voice Pitch (تنعيم/حدّة الصوت)</string>
@@ -359,8 +359,8 @@ data class ChildCharacter(
         val DEFAULT_CHARACTERS = listOf(
             ChildCharacter(
                 id = "char_lulu",
-                name = "Lulu",
-                arabicName = "لولو",
+                name = "Foxy",
+                arabicName = "فوكسي",
                 avatarEmoji = "👧",
                 pitch = 1.55f,
                 speechRate = 0.88f,
@@ -371,8 +371,8 @@ data class ChildCharacter(
             ),
             ChildCharacter(
                 id = "char_rashed",
-                name = "Rashed",
-                arabicName = "راشد",
+                name = "Spark",
+                arabicName = "سبارك",
                 avatarEmoji = "👦",
                 pitch = 1.45f,
                 speechRate = 0.85f,
@@ -383,8 +383,8 @@ data class ChildCharacter(
             ),
             ChildCharacter(
                 id = "char_noor",
-                name = "Noor",
-                arabicName = "نور",
+                name = "Talia",
+                arabicName = "تاليا",
                 avatarEmoji = "👧🏽",
                 pitch = 1.60f,
                 speechRate = 0.90f,
@@ -395,8 +395,8 @@ data class ChildCharacter(
             ),
             ChildCharacter(
                 id = "char_ali",
-                name = "Ali",
-                arabicName = "علي",
+                name = "Adam",
+                arabicName = "آدم",
                 avatarEmoji = "👦🏻",
                 pitch = 1.40f,
                 speechRate = 0.82f,
@@ -407,8 +407,8 @@ data class ChildCharacter(
             ),
             ChildCharacter(
                 id = "char_sara",
-                name = "Sara",
-                arabicName = "سارة",
+                name = "Daifa",
+                arabicName = "ضيفه",
                 avatarEmoji = "👧🏼",
                 pitch = 1.62f,
                 speechRate = 0.88f,

@@ -1,6 +1,5 @@
 import React from 'react';
-import { Volume2, Code2, Sparkles, Download } from 'lucide-react';
-import { downloadAndroidProjectZip } from '../utils/zipExporter';
+import { Volume2, Sparkles } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: 'studio' | 'characters' | 'settings' | 'android-code';
@@ -55,29 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             <Sparkles className="w-4 h-4 text-amber-300" />
             <span>أدوات ضبط الأصوات (Voice Controls)</span>
           </button>
-
-          <button
-            onClick={() => setActiveTab('android-code')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all ${
-              activeTab === 'android-code'
-                ? 'bg-[#0288D1] text-white font-extrabold shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-            }`}
-          >
-            <Code2 className="w-4 h-4" />
-            <span>كود أندرويد (Android Code)</span>
-          </button>
         </div>
-
-        {/* Export Project ZIP Button */}
-        <button
-          onClick={downloadAndroidProjectZip}
-          className="hidden md:flex items-center gap-2 bg-[#81C784] hover:bg-[#66BB6A] text-white font-extrabold text-xs px-4 py-2.5 rounded-2xl shadow-sm transition-all border border-green-300 active:scale-95"
-          title="Download Complete Android Studio Project (.zip)"
-        >
-          <Download className="w-4 h-4" />
-          <span>Export .ZIP</span>
-        </button>
 
       </div>
     </header>
