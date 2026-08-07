@@ -518,7 +518,7 @@ export class WebStudioSpeechEngine {
     const dialect = LANGUAGE_DIALECTS.find((d) => d.id === dialectId) || LANGUAGE_DIALECTS[0];
     const langCode = isArabic ? dialect.localeCode : dialect.localeCode;
     const encoded = encodeURIComponent(vocalizedText);
-    const url = `/api/tts?q=${encoded}&tl=${encodeURIComponent(langCode)}&gender=${char.gender || 'female'}&charId=${char.id}`;
+    const url = `/api/tts?q=${encoded}&tl=${encodeURIComponent(langCode)}&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}`;
 
     this.updateDiagnostic({
       timestamp: new Date().toLocaleTimeString(),
@@ -526,7 +526,7 @@ export class WebStudioSpeechEngine {
       isArabic,
       textSnippet: vocalizedText.slice(0, 40),
       engine: 'Gemini Server-Side TTS (/api/tts)',
-      voiceUsed: char.name || char.id,
+      voiceUsed: `${char.name} (${char.role === 'teacher' ? (char.gender === 'male' ? 'المعلم' : 'المعلمة') : (char.gender === 'male' ? 'ولد' : 'بنت')})`,
       status: 'playing',
       audioFormat: 'audio/wav / audio/mpeg'
     });
@@ -558,48 +558,85 @@ export class WebStudioSpeechEngine {
         return;
       }
 
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const audio = new Audio(objectUrl);
-      audio.crossOrigin = 'anonymous';
+      const arrayBuffer = await response.arrayBuffer();
 
-      const { rate } = getEffectivePitchAndRate(char);
-      audio.playbackRate = Math.min(1.5, Math.max(0.7, rate));
-
-      this.activeAudios.push(audio);
-
-      let finished = false;
-      const finish = () => {
-        if (!finished) {
-          finished = true;
-          URL.revokeObjectURL(objectUrl);
-          this.updateDiagnostic({
-            timestamp: new Date().toLocaleTimeString(),
-            inputLanguage: langCode,
-            isArabic,
-            textSnippet: vocalizedText.slice(0, 40),
-            engine: engineHeader,
-            voiceUsed: char.name,
-            status: 'success',
-            httpStatus,
-            engineHeader,
-            modelHeader,
-            audioFormat
-          });
-          onNext();
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
         }
-      };
 
-      audio.onended = finish;
-      audio.onerror = (e) => {
-        console.warn('Audio play error, finishing sentence:', e);
-        finish();
-      };
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
 
-      await audio.play().catch((playErr) => {
-        console.warn('Audio play promise rejected:', playErr);
-        finish();
-      });
+        const { pitch, rate } = getEffectivePitchAndRate(char);
+        let characterPitchScale = 1.0;
+
+        if (char.role === 'teacher') {
+          characterPitchScale = char.gender === 'male' ? 0.88 : 0.98;
+        } else if (char.gender === 'female') {
+          characterPitchScale = 1.22; // High-pitched child girl
+        } else {
+          characterPitchScale = 1.12; // Youthful child boy
+        }
+
+        const effectiveRate = Math.min(1.5, Math.max(0.7, characterPitchScale * (pitch / 1.5) * rate));
+        source.playbackRate.value = effectiveRate;
+
+        source.connect(ctx.destination);
+
+        let finished = false;
+        const finish = () => {
+          if (!finished) {
+            finished = true;
+            try { source.stop(); } catch (e) {}
+            try { ctx.close(); } catch (e) {}
+            this.updateDiagnostic({
+              timestamp: new Date().toLocaleTimeString(),
+              inputLanguage: langCode,
+              isArabic,
+              textSnippet: vocalizedText.slice(0, 40),
+              engine: engineHeader,
+              voiceUsed: `${char.name} (${char.arabicName})`,
+              status: 'success',
+              httpStatus,
+              engineHeader,
+              modelHeader,
+              audioFormat
+            });
+            onNext();
+          }
+        };
+
+        source.onended = finish;
+        source.start(0);
+      } catch (audioCtxErr) {
+        // Fallback to standard HTML5 Audio if WebAudio context fails
+        console.warn('Web Audio API playback failed, falling back to HTML5 Audio:', audioCtxErr);
+        const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+        const objectUrl = URL.createObjectURL(blob);
+        const audio = new Audio(objectUrl);
+        audio.crossOrigin = 'anonymous';
+
+        const { rate } = getEffectivePitchAndRate(char);
+        audio.playbackRate = Math.min(1.5, Math.max(0.7, rate));
+
+        this.activeAudios.push(audio);
+
+        let finished = false;
+        const finish = () => {
+          if (!finished) {
+            finished = true;
+            URL.revokeObjectURL(objectUrl);
+            onNext();
+          }
+        };
+
+        audio.onended = finish;
+        audio.onerror = finish;
+        await audio.play().catch(finish);
+      }
     } catch (e: any) {
       console.error('Audio fallback fetch error:', e);
       this.updateDiagnostic({
@@ -647,7 +684,7 @@ export class WebStudioSpeechEngine {
           const vocalizedText = isArabic ? enhanceArabicTextForSpeech(sentence) : sentence;
           const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
           const encoded = encodeURIComponent(vocalizedText);
-          const proxyUrl = `/api/tts?q=${encoded}&tl=${langCode}&gender=${char.gender || 'female'}&charId=${char.id}`;
+          const proxyUrl = `/api/tts?q=${encoded}&tl=${langCode}&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}`;
           const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
 
           let decodedBuf: AudioBuffer | null = null;
