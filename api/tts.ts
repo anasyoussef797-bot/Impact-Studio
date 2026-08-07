@@ -20,6 +20,98 @@ function createWavHeader(pcmDataLength: number, sampleRate = 24000, numChannels 
   return header;
 }
 
+function getGeminiVoiceConfig(requestedVoice: string, gender: string, role: string, charId: string) {
+  const req = (requestedVoice || '').trim();
+  const isMale = gender === 'male' || charId.includes('ahmed') || charId.includes('adam') || charId.includes('spark') || charId.includes('rashed') || charId.includes('ali');
+
+  if (req === 'Aoede') {
+    return {
+      voiceName: 'Aoede',
+      personaPrompt: 'You are Aoede. Speak in a warm, expressive, high-pitched youthful female voice.'
+    };
+  }
+  if (req === 'Puck') {
+    return {
+      voiceName: 'Puck',
+      personaPrompt: 'You are Puck. Speak in an energetic, lively, cheerful young boy voice.'
+    };
+  }
+  if (req === 'Callisto') {
+    return {
+      voiceName: 'Aoede',
+      personaPrompt: 'You are Callisto. Speak in a sweet, cheerful, melodic young girl voice.'
+    };
+  }
+  if (req === 'Pegasus') {
+    return {
+      voiceName: 'Puck',
+      personaPrompt: 'You are Pegasus. Speak in a friendly, cheerful, bright young boy voice.'
+    };
+  }
+  if (req === 'Zephyr') {
+    return {
+      voiceName: 'Aoede',
+      personaPrompt: 'You are Zephyr. Speak in a gentle, soft, light young girl voice.'
+    };
+  }
+  if (req === 'Leda') {
+    return {
+      voiceName: 'Kore',
+      personaPrompt: 'You are Leda. Speak in a clear, articulate, professional adult female teacher voice.'
+    };
+  }
+  if (req === 'Fenrir') {
+    return {
+      voiceName: 'Fenrir',
+      personaPrompt: 'You are Fenrir. Speak in a deep, warm, educational adult male teacher voice.'
+    };
+  }
+  if (req === 'Kore') {
+    return {
+      voiceName: 'Kore',
+      personaPrompt: 'You are Kore. Speak in a balanced, articulate female voice.'
+    };
+  }
+  if (req === 'Charon') {
+    return {
+      voiceName: 'Charon',
+      personaPrompt: 'You are Charon. Speak in a deep, resonant, narrative male voice.'
+    };
+  }
+  if (req === 'Orpheus') {
+    return {
+      voiceName: 'Fenrir',
+      personaPrompt: 'You are Orpheus. Speak in a warm, gentle, friendly adult male voice.'
+    };
+  }
+  if (req === 'Miranda') {
+    return {
+      voiceName: 'Aoede',
+      personaPrompt: 'You are Miranda. Speak in a bright, energetic young girl voice.'
+    };
+  }
+  if (req === 'Umbriel') {
+    return {
+      voiceName: 'Puck',
+      personaPrompt: 'You are Umbriel. Speak in a calm, thoughtful young boy voice.'
+    };
+  }
+
+  // Fallback by role & gender
+  if (role === 'teacher' || charId === 'char_ahmed' || charId === 'char_maryam') {
+    if (isMale) {
+      return { voiceName: 'Fenrir', personaPrompt: 'You are an adult male teacher. Speak in a deep, clear adult male voice.' };
+    }
+    return { voiceName: 'Kore', personaPrompt: 'You are an adult female teacher. Speak in a clear, articulate adult female voice.' };
+  }
+
+  if (isMale) {
+    return { voiceName: 'Puck', personaPrompt: 'You are a young boy. Speak in a cheerful, energetic young boy voice.' };
+  }
+
+  return { voiceName: 'Aoede', personaPrompt: 'You are a young girl. Speak in a sweet, cheerful young girl voice.' };
+}
+
 export async function handleTTSRequest(req: any, res: any) {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -57,35 +149,14 @@ export async function handleTTSRequest(req: any, res: any) {
     }
 
     const isArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(q) || tl.includes('ar');
-    const isMale = gender === 'male' || charId.includes('ahmed') || charId.includes('rashed') || charId.includes('ali');
+    const isMale = gender === 'male' || charId.includes('ahmed') || charId.includes('adam') || charId.includes('spark') || charId.includes('rashed') || charId.includes('ali');
 
     // Gemini Voice Selection Strategy per character identity
-    let geminiVoice = voiceParam;
-    let personaPrompt = '';
+    const voiceConfig = getGeminiVoiceConfig(voiceParam, gender, role, charId);
+    const geminiVoice = voiceConfig.voiceName;
+    const personaPrompt = voiceConfig.personaPrompt;
 
-    if (charId === 'char_lulu' || charId === 'char_noor' || charId === 'char_sara') {
-      if (!geminiVoice) geminiVoice = 'Aoede';
-      personaPrompt = 'You are a sweet, cheerful 7-year-old young girl. Speak in a high-pitched, cute child girl voice.';
-    } else if (charId === 'char_rashed' || charId === 'char_ali') {
-      if (!geminiVoice) geminiVoice = 'Puck';
-      personaPrompt = 'You are an energetic 8-year-old young boy. Speak in a lively, playful young boy voice.';
-    } else if (charId === 'char_maryam' || (role === 'teacher' && !isMale)) {
-      if (!geminiVoice) geminiVoice = 'Leda';
-      personaPrompt = 'You are a warm, articulate adult female teacher. Speak in a clear, educational adult female voice.';
-    } else if (charId === 'char_ahmed' || (role === 'teacher' && isMale)) {
-      if (!geminiVoice) geminiVoice = 'Fenrir';
-      personaPrompt = 'You are a respected, friendly adult male teacher. Speak in a deep, warm, educational adult male voice.';
-    } else if (isMale) {
-      if (!geminiVoice) geminiVoice = role === 'teacher' ? 'Fenrir' : 'Puck';
-      personaPrompt = role === 'teacher'
-        ? 'You are an adult male teacher. Speak in a clear adult male voice.'
-        : 'You are a young boy. Speak in a cheerful young boy voice.';
-    } else {
-      if (!geminiVoice) geminiVoice = role === 'teacher' ? 'Leda' : 'Aoede';
-      personaPrompt = role === 'teacher'
-        ? 'You are an adult female teacher. Speak in a clear adult female voice.'
-        : 'You are a young girl. Speak in a cheerful young girl voice.';
-    }
+    console.log(`[TTS DEBUG] Text: "${q.slice(0, 30)}..." | Requested Voice: "${voiceParam}" | Final Gemini Voice: "${geminiVoice}" | Char: "${charId}"`);
 
     // Attempt 1: Gemini TTS API (Primary Engine for Arabic & all supported languages)
     const apiKey = process.env.GEMINI_API_KEY;
@@ -100,7 +171,7 @@ export async function handleTTSRequest(req: any, res: any) {
           ? `${personaPrompt} Please speak the following text in clear, natural, fluent Arabic with proper diacritics and correct pronunciation: "${q}"`
           : `${personaPrompt} Please read the following text clearly: "${q}"`;
 
-        const modelsToTry = ['gemini-2.5-flash', 'gemini-3.1-flash-tts-preview', 'gemini-2.0-flash'];
+        const modelsToTry = ['gemini-2.0-flash'];
 
         for (const model of modelsToTry) {
           try {
@@ -127,16 +198,19 @@ export async function handleTTSRequest(req: any, res: any) {
               res.setHeader('X-TTS-Engine', 'Gemini-TTS');
               res.setHeader('X-TTS-Model', model);
               res.setHeader('X-TTS-Voice', geminiVoice);
+              res.setHeader('X-TTS-Requested-Voice', voiceParam || 'Default');
               res.setHeader('X-Audio-Format', '24000Hz PCM WAV');
-              res.setHeader('Cache-Control', 'public, max-age=86400');
+              res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
               return res.send(wavBuffer);
+            } else {
+              console.warn(`[TTS DEBUG] Gemini model ${model} returned no audio data.`);
             }
           } catch (mErr) {
-            console.warn(`Gemini TTS model ${model} attempt failed:`, mErr);
+            console.warn(`[TTS DEBUG] Gemini TTS model ${model} attempt failed:`, mErr);
           }
         }
       } catch (gErr) {
-        console.warn('Gemini TTS engine initialization error:', gErr);
+        console.warn('[TTS DEBUG] Gemini TTS engine initialization error:', gErr);
       }
     } else {
       console.warn('GEMINI_API_KEY environment variable is missing on server. Using fallback audio proxies.');

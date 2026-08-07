@@ -1051,6 +1051,33 @@ export class WebStudioSpeechEngine {
     return new Blob([buffer], { type: 'audio/wav' });
   }
 
+  public testVoiceAB(voiceName: string, text: string, lang: 'ar' | 'en' = 'ar', onComplete?: () => void) {
+    this.stop();
+    this.isStopped = false;
+
+    const dummyChar: ChildCharacter = {
+      id: `test_${voiceName.toLowerCase()}`,
+      name: `Test (${voiceName})`,
+      arabicName: `اختبار (${voiceName})`,
+      avatar: '🎙️',
+      gender: ['Aoede', 'Callisto', 'Zephyr', 'Leda', 'Kore', 'Miranda'].includes(voiceName) ? 'female' : 'male',
+      role: ['Leda', 'Fenrir', 'Charon', 'Orpheus'].includes(voiceName) ? 'teacher' : 'child',
+      pitch: 1.0,
+      speechRate: 1.0,
+      mood: 'happy',
+      voiceId: voiceName,
+      preferredLanguage: lang === 'ar' ? 'fusha_ar' : 'english',
+      color: '#6366F1',
+      staggerDelayMs: 0
+    };
+
+    console.log(`[A/B Voice Test] Voice: ${voiceName} | Text: "${text}" | Lang: ${lang}`);
+
+    this.speakWithAudioFallback(text, dummyChar, lang === 'ar' ? 'fusha_ar' : 'english', lang === 'ar', () => {
+      if (onComplete) onComplete();
+    });
+  }
+
   public testArabicVoice(char?: ChildCharacter, onComplete?: () => void) {
     this.stop();
     this.isStopped = false;
