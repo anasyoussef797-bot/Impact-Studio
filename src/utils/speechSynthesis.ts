@@ -194,12 +194,29 @@ export function getEffectivePitchAndRate(char: ChildCharacter): { pitch: number;
   return { pitch: finalPitch, rate: finalRate };
 }
 
+export interface TTSDiagnosticInfo {
+  timestamp: string;
+  inputLanguage: string;
+  isArabic: boolean;
+  textSnippet: string;
+  engine: string;
+  voiceUsed: string;
+  status: 'playing' | 'success' | 'error';
+  httpStatus?: number;
+  engineHeader?: string;
+  modelHeader?: string;
+  audioFormat?: string;
+  errorMessage?: string;
+}
+
 export class WebStudioSpeechEngine {
   private synth: SpeechSynthesis | null = null;
   private voices: SpeechSynthesisVoice[] = [];
   private activeTimers: number[] = [];
   private activeAudios: HTMLAudioElement[] = [];
   private isStopped = false;
+  private lastDiagnostic: TTSDiagnosticInfo | null = null;
+  private diagnosticListeners: ((info: TTSDiagnosticInfo) => void)[] = [];
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -209,6 +226,25 @@ export class WebStudioSpeechEngine {
         this.synth.onvoiceschanged = () => this.loadVoices();
       }
     }
+  }
+
+  public subscribeDiagnostic(listener: (info: TTSDiagnosticInfo) => void) {
+    this.diagnosticListeners.push(listener);
+    if (this.lastDiagnostic) {
+      listener(this.lastDiagnostic);
+    }
+    return () => {
+      this.diagnosticListeners = this.diagnosticListeners.filter((l) => l !== listener);
+    };
+  }
+
+  public getLatestDiagnostic(): TTSDiagnosticInfo | null {
+    return this.lastDiagnostic;
+  }
+
+  private updateDiagnostic(info: TTSDiagnosticInfo) {
+    this.lastDiagnostic = info;
+    this.diagnosticListeners.forEach((listener) => listener(info));
   }
 
   private loadVoices() {
@@ -376,8 +412,8 @@ export class WebStudioSpeechEngine {
 
       const bestVoice = this.findBestVoice(dialectId, char);
 
-      // If no native Arabic voice exists on client machine, route to high quality audio fallback
-      if (this.synth && 'SpeechSynthesisUtterance' in window && (!isArabic || bestVoice !== null)) {
+      // STRICT MANDATE: Arabic MUST NEVER use browser SpeechSynthesis! Route directly to Gemini / Server-Side TTS (/api/tts)
+      if (!isArabic && this.synth && 'SpeechSynthesisUtterance' in window && bestVoice !== null) {
         this.speakWithSpeechSynthesis(sentence, char, dialectId, isArabic, bestVoice, () => {
           speakNextSentence();
         });
@@ -417,7 +453,7 @@ export class WebStudioSpeechEngine {
         utterance.voice = bestVoice;
         utterance.lang = bestVoice.lang;
       } else {
-        utterance.lang = isArabic ? 'ar-SA' : dialect.localeCode;
+        utterance.lang = dialect.localeCode;
       }
 
       const { pitch, rate } = getEffectivePitchAndRate(char);
@@ -448,6 +484,17 @@ export class WebStudioSpeechEngine {
       }, Math.max(3500, sentence.length * 120));
       this.activeTimers.push(watchdog as unknown as number);
 
+      this.updateDiagnostic({
+        timestamp: new Date().toLocaleTimeString(),
+        inputLanguage: dialect.localeCode,
+        isArabic: false,
+        textSnippet: sentence.slice(0, 40),
+        engine: 'Browser SpeechSynthesis',
+        voiceUsed: bestVoice ? bestVoice.name : 'Default',
+        status: 'playing',
+        audioFormat: 'System Audio'
+      });
+
       this.synth.speak(utterance);
     } catch (err) {
       console.error('Speech synthesis exception:', err);
@@ -455,7 +502,7 @@ export class WebStudioSpeechEngine {
     }
   }
 
-  private speakWithAudioFallback(
+  private async speakWithAudioFallback(
     sentence: string,
     char: ChildCharacter,
     dialectId: LanguageDialectId,
@@ -467,17 +514,56 @@ export class WebStudioSpeechEngine {
       return;
     }
 
+    const vocalizedText = isArabic ? enhanceArabicTextForSpeech(sentence) : sentence;
+    const dialect = LANGUAGE_DIALECTS.find((d) => d.id === dialectId) || LANGUAGE_DIALECTS[0];
+    const langCode = isArabic ? dialect.localeCode : dialect.localeCode;
+    const encoded = encodeURIComponent(vocalizedText);
+    const url = `/api/tts?q=${encoded}&tl=${encodeURIComponent(langCode)}&gender=${char.gender || 'female'}&charId=${char.id}`;
+
+    this.updateDiagnostic({
+      timestamp: new Date().toLocaleTimeString(),
+      inputLanguage: langCode,
+      isArabic,
+      textSnippet: vocalizedText.slice(0, 40),
+      engine: 'Gemini Server-Side TTS (/api/tts)',
+      voiceUsed: char.name || char.id,
+      status: 'playing',
+      audioFormat: 'audio/wav / audio/mpeg'
+    });
+
     try {
-      const vocalizedText = isArabic ? enhanceArabicTextForSpeech(sentence) : sentence;
-      const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
-      const encoded = encodeURIComponent(vocalizedText);
-      const url = `/api/tts?q=${encoded}&tl=${langCode}&gender=${char.gender || 'female'}&charId=${char.id}`;
+      const response = await fetch(url);
+      const httpStatus = response.status;
+      const engineHeader = response.headers.get('X-TTS-Engine') || 'Gemini-TTS';
+      const modelHeader = response.headers.get('X-TTS-Model') || 'gemini-2.5-flash';
+      const audioFormat = response.headers.get('X-Audio-Format') || response.headers.get('Content-Type') || 'audio/wav';
 
-      const audio = new Audio();
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.updateDiagnostic({
+          timestamp: new Date().toLocaleTimeString(),
+          inputLanguage: langCode,
+          isArabic,
+          textSnippet: vocalizedText.slice(0, 40),
+          engine: engineHeader,
+          voiceUsed: char.name,
+          status: 'error',
+          httpStatus,
+          engineHeader,
+          modelHeader,
+          audioFormat,
+          errorMessage: errorText || `HTTP ${httpStatus} error`
+        });
+        onNext();
+        return;
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const audio = new Audio(objectUrl);
       audio.crossOrigin = 'anonymous';
-      audio.src = url;
 
-      const { pitch, rate } = getEffectivePitchAndRate(char);
+      const { rate } = getEffectivePitchAndRate(char);
       audio.playbackRate = Math.min(1.5, Math.max(0.7, rate));
 
       this.activeAudios.push(audio);
@@ -486,23 +572,46 @@ export class WebStudioSpeechEngine {
       const finish = () => {
         if (!finished) {
           finished = true;
+          URL.revokeObjectURL(objectUrl);
+          this.updateDiagnostic({
+            timestamp: new Date().toLocaleTimeString(),
+            inputLanguage: langCode,
+            isArabic,
+            textSnippet: vocalizedText.slice(0, 40),
+            engine: engineHeader,
+            voiceUsed: char.name,
+            status: 'success',
+            httpStatus,
+            engineHeader,
+            modelHeader,
+            audioFormat
+          });
           onNext();
         }
       };
 
       audio.onended = finish;
-      audio.onerror = () => {
-        // Fallback to direct URL if express proxy fails
-        const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
-        const fallbackAudio = new Audio(directUrl);
-        fallbackAudio.onended = finish;
-        fallbackAudio.onerror = finish;
-        fallbackAudio.play().catch(finish);
+      audio.onerror = (e) => {
+        console.warn('Audio play error, finishing sentence:', e);
+        finish();
       };
 
-      audio.play().catch(() => finish());
-    } catch (e) {
-      console.error('Audio fallback error:', e);
+      await audio.play().catch((playErr) => {
+        console.warn('Audio play promise rejected:', playErr);
+        finish();
+      });
+    } catch (e: any) {
+      console.error('Audio fallback fetch error:', e);
+      this.updateDiagnostic({
+        timestamp: new Date().toLocaleTimeString(),
+        inputLanguage: langCode,
+        isArabic,
+        textSnippet: vocalizedText.slice(0, 40),
+        engine: 'Gemini Server-Side TTS (/api/tts)',
+        voiceUsed: char.name,
+        status: 'error',
+        errorMessage: e.message || 'Fetch failed'
+      });
       onNext();
     }
   }
@@ -673,6 +782,50 @@ export class WebStudioSpeechEngine {
     }
 
     return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  public testArabicVoice(char?: ChildCharacter, onComplete?: () => void) {
+    this.stop();
+    this.isStopped = false;
+    const testChar = char || INITIAL_CHARACTERS[0];
+    const text = 'مرحباً، هذا اختبار للصوت العربي.';
+    this.speakWithAudioFallback(text, testChar, 'fusha_ar', true, () => {
+      if (onComplete) onComplete();
+    });
+  }
+
+  public runDiagnosticTest(testId: 1 | 2 | 3 | 4 | 5, onStart?: (desc: string) => void, onEnd?: () => void) {
+    this.stop();
+    this.isStopped = false;
+    const testChar = INITIAL_CHARACTERS[0];
+
+    const tests = {
+      1: { text: 'Hello, welcome to AI Studio text to speech test.', lang: 'english' as LanguageDialectId, isAr: false, desc: 'Test 1: English TTS' },
+      2: { text: 'مرحباً بكم في عالم التعلم وتوليد الصوت العربي.', lang: 'fusha_ar' as LanguageDialectId, isAr: true, desc: 'Test 2: Arabic Gemini TTS' },
+      3: { text: 'Bonjour et bienvenue dans notre studio de synthèse vocale.', lang: 'french' as LanguageDialectId, isAr: false, desc: 'Test 3: French TTS' },
+      4: { text: 'Hallo und willkommen zum Sprachtest.', lang: 'german' as LanguageDialectId, isAr: false, desc: 'Test 4: German TTS' },
+      5: { text: 'مرحباً بكم في Impact Studio - Hello World!', lang: 'fusha_ar' as LanguageDialectId, isAr: true, desc: 'Test 5: Mixed Arabic + English TTS' }
+    };
+
+    const item = tests[testId];
+    if (onStart) onStart(item.desc);
+
+    if (item.isAr) {
+      this.speakWithAudioFallback(item.text, testChar, item.lang, true, () => {
+        if (onEnd) onEnd();
+      });
+    } else {
+      const bestVoice = this.findBestVoice(item.lang, testChar);
+      if (this.synth && 'SpeechSynthesisUtterance' in window && bestVoice !== null) {
+        this.speakWithSpeechSynthesis(item.text, testChar, item.lang, false, bestVoice, () => {
+          if (onEnd) onEnd();
+        });
+      } else {
+        this.speakWithAudioFallback(item.text, testChar, item.lang, false, () => {
+          if (onEnd) onEnd();
+        });
+      }
+    }
   }
 
   public stop() {

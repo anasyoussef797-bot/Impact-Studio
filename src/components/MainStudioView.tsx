@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Play, Square, Users, Download, Sparkles, RefreshCw, Sliders, Gauge, Smile, Volume2 } from 'lucide-react';
+import { Play, Square, Users, Download, Sparkles, RefreshCw, Sliders, Gauge, Smile, Volume2, Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import { ChildCharacter, LanguageDialectId, VoiceMood } from '../types';
 import { LANGUAGE_DIALECTS, MOOD_PRESETS, speechEngine } from '../utils/speechSynthesis';
+import { DiagnosticPanel } from './DiagnosticPanel';
 
 interface MainStudioViewProps {
   characters: ChildCharacter[];
@@ -17,6 +18,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
   const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [activeControlCharId, setActiveControlCharId] = useState<string>(characters[0].id);
+  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
 
   const currentDialectObj = LANGUAGE_DIALECTS.find((d) => d.id === selectedDialect) || LANGUAGE_DIALECTS[0];
 
@@ -74,6 +76,13 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
     );
   };
 
+  const handleTestArabicVoice = () => {
+    setIsSpeaking(true);
+    speechEngine.testArabicVoice(activeChar, () => {
+      setIsSpeaking(false);
+    });
+  };
+
   const handleDownload = async () => {
     if (isDownloading || !scriptText.trim()) return;
 
@@ -97,7 +106,53 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-      
+
+      {/* Top Banner with Quick Test Arabic Voice & Diagnostics Toggle */}
+      <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-5 shadow-lg border border-purple-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-300 flex items-center justify-center font-bold text-xl border border-amber-400/30">
+            ✨
+          </div>
+          <div>
+            <h2 className="font-extrabold text-base text-white flex items-center gap-2">
+              <span>محرك تحويل النص إلى صوت (Gemini Arabic TTS Engine)</span>
+              <span className="px-2 py-0.5 bg-amber-400/20 text-amber-300 text-[10px] font-black rounded-full uppercase border border-amber-400/30">
+                Server API Ready
+              </span>
+            </h2>
+            <p className="text-xs text-purple-200">
+              توليد صوت عربي حقيقي عبر نموذج Gemini API مباشرة دون الاعتماد على أصوات المتصفح المحلية.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <button
+            onClick={handleTestArabicVoice}
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-amber-900/30 cursor-pointer"
+          >
+            <Volume2 className="w-4 h-4 text-slate-950" />
+            <span>اختبار الصوت العربي (Test Arabic Voice)</span>
+          </button>
+
+          <button
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+            className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-purple-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all border border-white/10 cursor-pointer"
+          >
+            <Activity className="w-4 h-4 text-purple-300" />
+            <span className="hidden md:inline">لوحة التشخيص</span>
+            {showDiagnostics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Developer Diagnostics Panel (Collapsible) */}
+      {showDiagnostics && (
+        <div className="animate-fade-in">
+          <DiagnosticPanel />
+        </div>
+      )}
+
       {/* Script Input Box */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#E1F5FE] space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
