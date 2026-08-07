@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, CheckCircle2, AlertCircle, Play, Sparkles, Terminal, Volume2, Info } from 'lucide-react';
 import { speechEngine, TTSDiagnosticInfo } from '../utils/speechSynthesis';
+import { GeminiVoiceDiagnosticSuite } from './GeminiVoiceDiagnosticSuite';
 
 export const DiagnosticPanel: React.FC = () => {
   const [diagnostic, setDiagnostic] = useState<TTSDiagnosticInfo | null>(speechEngine.getLatestDiagnostic());
@@ -234,98 +235,8 @@ export const DiagnosticPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* A/B Direct Voice Identity Test Suite (Direct Gemini Voice Verification) */}
-      <div className="space-y-2 bg-slate-950/80 p-4 rounded-2xl border border-indigo-500/30">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-          <span className="flex items-center gap-1.5 text-indigo-400">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span>اختبار الأصوات المباشر (Direct Gemini Voice A/B Verification):</span>
-          </span>
-          <span className="text-[10px] text-slate-400">
-            اختبار مباشر ونفس النص للتأكد من اختلاف الهويات الصوتية
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
-          {/* Aoede Arabic */}
-          <button
-            onClick={() => handleABTest('Aoede', 'ar')}
-            disabled={runningTest !== null}
-            className="p-2 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 text-right border border-indigo-500/40 text-xs flex flex-col justify-between hover:border-indigo-400 transition-all cursor-pointer"
-          >
-            <div className="flex items-center justify-between w-full">
-              <span className="font-extrabold text-indigo-300">Aoede (عربي)</span>
-              <Play className="w-3 h-3 text-indigo-400" />
-            </div>
-            <span className="text-[9px] text-indigo-200/80 mt-1 truncate font-mono">مرحباً، هذا اختبار...</span>
-          </button>
-
-          {/* Fenrir Arabic */}
-          <button
-            onClick={() => handleABTest('Fenrir', 'ar')}
-            disabled={runningTest !== null}
-            className="p-2 rounded-xl bg-purple-950/80 hover:bg-purple-900 text-right border border-purple-500/40 text-xs flex flex-col justify-between hover:border-purple-400 transition-all cursor-pointer"
-          >
-            <div className="flex items-center justify-between w-full">
-              <span className="font-extrabold text-purple-300">Fenrir (عربي)</span>
-              <Play className="w-3 h-3 text-purple-400" />
-            </div>
-            <span className="text-[9px] text-purple-200/80 mt-1 truncate font-mono">مرحباً، هذا اختبار...</span>
-          </button>
-
-          {/* Leda Arabic */}
-          <button
-            onClick={() => handleABTest('Leda', 'ar')}
-            disabled={runningTest !== null}
-            className="p-2 rounded-xl bg-pink-950/80 hover:bg-pink-900 text-right border border-pink-500/40 text-xs flex flex-col justify-between hover:border-pink-400 transition-all cursor-pointer"
-          >
-            <div className="flex items-center justify-between w-full">
-              <span className="font-extrabold text-pink-300">Leda (عربي)</span>
-              <Play className="w-3 h-3 text-pink-400" />
-            </div>
-            <span className="text-[9px] text-pink-200/80 mt-1 truncate font-mono">مرحباً، هذا اختبار...</span>
-          </button>
-
-          {/* Aoede English */}
-          <button
-            onClick={() => handleABTest('Aoede', 'en')}
-            disabled={runningTest !== null}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-left border border-slate-600/60 text-xs flex flex-col justify-between hover:border-sky-400 transition-all cursor-pointer"
-          >
-            <div className="flex items-center justify-between w-full">
-              <span className="font-extrabold text-sky-300">Aoede (EN)</span>
-              <Play className="w-3 h-3 text-sky-400" />
-            </div>
-            <span className="text-[9px] text-slate-300 mt-1 truncate font-mono">Hello, this is...</span>
-          </button>
-
-          {/* Fenrir English */}
-          <button
-            onClick={() => handleABTest('Fenrir', 'en')}
-            disabled={runningTest !== null}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-left border border-slate-600/60 text-xs flex flex-col justify-between hover:border-emerald-400 transition-all cursor-pointer"
-          >
-            <div className="flex items-center justify-between w-full">
-              <span className="font-extrabold text-emerald-300">Fenrir (EN)</span>
-              <Play className="w-3 h-3 text-emerald-400" />
-            </div>
-            <span className="text-[9px] text-slate-300 mt-1 truncate font-mono">Hello, this is...</span>
-          </button>
-
-          {/* Leda English */}
-          <button
-            onClick={() => handleABTest('Leda', 'en')}
-            disabled={runningTest !== null}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-left border border-slate-600/60 text-xs flex flex-col justify-between hover:border-amber-400 transition-all cursor-pointer"
-          >
-            <div className="flex items-center justify-between w-full">
-              <span className="font-extrabold text-amber-300">Leda (EN)</span>
-              <Play className="w-3 h-3 text-amber-400" />
-            </div>
-            <span className="text-[9px] text-slate-300 mt-1 truncate font-mono">Hello, this is...</span>
-          </button>
-        </div>
-      </div>
+      {/* Gemini Voice Diagnostic Suite */}
+      <GeminiVoiceDiagnosticSuite />
 
       {/* Architecture Spec Info Banner */}
       <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">

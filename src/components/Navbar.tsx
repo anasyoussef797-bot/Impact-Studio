@@ -19,8 +19,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-extrabold text-2xl tracking-tight text-[#4527A0]">Impact Studio</h1>
-              <span className="text-[10px] bg-[#F3E5F5] text-[#7B1FA2] font-extrabold px-2.5 py-0.5 rounded-full border border-purple-200 uppercase tracking-wide">
-                Native Android
+              <span className="text-[10px] bg-[#E8EAF6] text-[#3F51B5] font-extrabold px-2.5 py-0.5 rounded-full border border-indigo-200 uppercase tracking-wide">
+                منصة ويب مباشرة (Web Studio)
               </span>
             </div>
             <p className="text-[11px] uppercase tracking-widest text-[#9E9E9E] font-bold">

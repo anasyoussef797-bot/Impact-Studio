@@ -65,10 +65,10 @@ export default function App() {
       <footer className="bg-slate-900 text-slate-400 text-xs py-4 text-center border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            Impact Studio • Native Android App developed by <strong className="text-amber-400">Impact Hub Egypt</strong>
+            Impact Studio • Web Application Platform developed by <strong className="text-amber-400">Impact Hub Egypt</strong>
           </span>
           <span className="font-mono text-[11px] text-slate-500">
-            Package: com.impacthubegypt.impactstudio
+            https://impact-studio-rho.vercel.app
           </span>
         </div>
       </footer>
