@@ -1,5 +1,6 @@
 import { ChildCharacter, LanguageDialectId, VoiceMood } from '../types';
-import { enhanceArabicTextForSpeech } from './arabicUtils';
+import { enhanceArabicTextForSpeech, isArabicText } from './arabicUtils';
+
 
 export interface DialectOption {
   id: LanguageDialectId;
@@ -762,6 +763,125 @@ export class WebStudioSpeechEngine {
     } catch (err) {
       console.error('Error downloading audio file:', err);
       onProgress('حدث خطأ أثناء تنزيل الصوت.');
+    }
+  }
+
+  public speakDialogueSequential(
+    lines: Array<{ characterId: string; text: string }>,
+    characters: ChildCharacter[],
+    dialectId: LanguageDialectId,
+    onLineStart: (index: number) => void,
+    onDone: () => void
+  ) {
+    this.stop();
+    this.isStopped = false;
+
+    let lineIdx = 0;
+    const playNext = () => {
+      if (this.isStopped || lineIdx >= lines.length) {
+        onDone();
+        return;
+      }
+
+      const line = lines[lineIdx];
+      const char = characters.find((c) => c.id === line.characterId) || characters[0];
+      const currentIndex = lineIdx;
+      lineIdx++;
+
+      if (!line.text.trim()) {
+        playNext();
+        return;
+      }
+
+      onLineStart(currentIndex);
+      const sentences = this.splitTextIntoSentences(line.text);
+      this.playCharacterSequential(sentences, char, dialectId, isArabicText(line.text), () => {
+        playNext();
+      });
+    };
+
+    playNext();
+  }
+
+  public async downloadDialogueAudio(
+    lines: Array<{ characterId: string; text: string }>,
+    characters: ChildCharacter[],
+    dialectId: LanguageDialectId,
+    onProgress: (status: string) => void
+  ) {
+    try {
+      const validLines = lines.filter((l) => l.text.trim().length > 0);
+      if (validLines.length === 0) {
+        onProgress('لا توجد أسطر حوارية للتصدير.');
+        return;
+      }
+
+      onProgress('جاري توليد ملفات الصوت لكل شخصية في السيناريو...');
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const chunks: Array<{ buffer: AudioBuffer; rate: number }> = [];
+
+      for (const line of validLines) {
+        const char = characters.find((c) => c.id === line.characterId) || characters[0];
+        const isArabic = isArabicText(line.text);
+        const vocalized = isArabic ? enhanceArabicTextForSpeech(line.text) : line.text;
+        const encoded = encodeURIComponent(vocalized);
+        const proxyUrl = `/api/tts?q=${encoded}&tl=ar&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}`;
+
+        try {
+          const resp = await fetch(proxyUrl);
+          if (resp.ok) {
+            const arr = await resp.arrayBuffer();
+            if (arr.byteLength > 200) {
+              const decodedBuf = await ctx.decodeAudioData(arr);
+              chunks.push({ buffer: decodedBuf, rate: char.speechRate });
+            }
+          }
+        } catch (err) {
+          console.warn('Dialogue fetch failed for line:', err);
+        }
+      }
+
+      if (chunks.length === 0) {
+        onProgress('عذراً، تعذر توليد الحوار.');
+        return;
+      }
+
+      let totalSec = 0;
+      chunks.forEach((c) => {
+        totalSec += c.buffer.duration + 0.3;
+      });
+
+      const sampleRate = chunks[0].buffer.sampleRate || 44100;
+      const numOfChannels = chunks[0].buffer.numberOfChannels || 2;
+      const totalSamples = Math.max(sampleRate, Math.ceil(totalSec * sampleRate));
+
+      const offlineCtx = new OfflineAudioContext(numOfChannels, totalSamples, sampleRate);
+      let offset = 0;
+
+      for (const chunk of chunks) {
+        const source = offlineCtx.createBufferSource();
+        source.buffer = chunk.buffer;
+        source.connect(offlineCtx.destination);
+        source.start(offset);
+        offset += chunk.buffer.duration + 0.3;
+      }
+
+      const renderedBuffer = await offlineCtx.startRendering();
+      const wavBlob = this.bufferToWave(renderedBuffer, renderedBuffer.length);
+      const url = URL.createObjectURL(wavBlob);
+
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `dialogue_story_${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      onProgress('تم تحضير وتنزيل القصة الحوارية الكاملة بنجاح! 🎉');
+    } catch (e) {
+      console.error('Dialogue download error:', e);
+      onProgress('حدث خطأ أثناء تنزيل الحوار.');
     }
   }
 

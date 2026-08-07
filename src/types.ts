@@ -34,9 +34,34 @@ export interface StudioSettings {
   autoClearText: boolean;
 }
 
-export interface AndroidFile {
-  path: string;
-  filename: string;
-  category: 'gradle' | 'manifest' | 'kotlin' | 'res';
-  code: string;
+export interface DialogueLine {
+  id: string;
+  characterId: string;
+  text: string;
+  mood?: VoiceMood;
 }
+
+export interface AudioHistoryItem {
+  id: string;
+  timestamp: string;
+  characterName: string;
+  characterAvatar: string;
+  textSnippet: string;
+  dialectName: string;
+  audioBlobUrl: string;
+  audioBuffer?: ArrayBuffer;
+}
+
+export type StudioAudioEffect = 'none' | 'studio' | 'radio' | 'reverb' | 'warm_eq';
+
+export interface AndroidFile {
+  filename: string;
+  path: string;
+  code: string;
+  language?: string;
+  category: string;
+}
+
+
+
+

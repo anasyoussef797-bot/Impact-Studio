@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Play, Square, Users, Download, Sparkles, RefreshCw, Sliders, Gauge, Smile, Volume2, Activity, ChevronDown, ChevronUp } from 'lucide-react';
-import { ChildCharacter, LanguageDialectId, VoiceMood } from '../types';
+import { Play, Square, Users, Download, Sparkles, RefreshCw, Sliders, Gauge, Smile, Volume2, Activity, ChevronDown, ChevronUp, Type, Wand2, FileText, MessageSquare } from 'lucide-react';
+import { ChildCharacter, LanguageDialectId, VoiceMood, DialogueLine, AudioHistoryItem } from '../types';
 import { LANGUAGE_DIALECTS, MOOD_PRESETS, speechEngine } from '../utils/speechSynthesis';
+import { autoTashkeelText, removeDiacritics, SCRIPT_TEMPLATES } from '../utils/arabicUtils';
 import { DiagnosticPanel } from './DiagnosticPanel';
+import { DialogueEditor } from './DialogueEditor';
+import { AudioHistoryView } from './AudioHistoryView';
 
 interface MainStudioViewProps {
   characters: ChildCharacter[];
@@ -19,6 +22,25 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [activeControlCharId, setActiveControlCharId] = useState<string>(characters[0].id);
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
+
+  // New Professional Mode States
+  const [studioMode, setStudioMode] = useState<'single' | 'dialogue'>('single');
+  const [activeDialogueIndex, setActiveDialogueIndex] = useState<number | null>(null);
+  const [audioHistory, setAudioHistory] = useState<AudioHistoryItem[]>([]);
+  const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([
+    {
+      id: 'd1',
+      characterId: characters[0].id, // Foxy
+      text: 'مَرْحَبًا أُسْتَاذُ أَحْمَد، هَلْ سَنَقْرَأُ الْقِصَّةَ الْيَوْمَ؟',
+      mood: 'happy'
+    },
+    {
+      id: 'd2',
+      characterId: characters.find(c => c.role === 'teacher')?.id || characters[0].id, // Teacher Ahmed
+      text: 'أَهْلًا بِكَ يَا فُوكْسِي! نَعَمْ، هَيَّا بِنَا لِنَبْدَأَ مَغَامَرَتَنَا الْجَدِيدَةَ.',
+      mood: 'enthusiastic'
+    }
+  ]);
 
   const currentDialectObj = LANGUAGE_DIALECTS.find((d) => d.id === selectedDialect) || LANGUAGE_DIALECTS[0];
 
@@ -55,6 +77,22 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
     );
   };
 
+  const handleAutoTashkeel = () => {
+    if (!scriptText.trim()) return;
+    const vocalized = autoTashkeelText(scriptText);
+    setScriptText(vocalized);
+  };
+
+  const handleRemoveTashkeel = () => {
+    if (!scriptText.trim()) return;
+    const clean = removeDiacritics(scriptText);
+    setScriptText(clean);
+  };
+
+  const insertExpressionTag = (tag: string) => {
+    setScriptText((prev) => (prev ? `${prev} ${tag}` : tag));
+  };
+
   const selectedCharacters = characters.filter((c) => c.isSelected);
   const activeChar = characters.find((c) => c.id === activeControlCharId) || characters[0];
 
@@ -62,6 +100,22 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
     if (isSpeaking) {
       speechEngine.stop();
       setIsSpeaking(false);
+      setActiveDialogueIndex(null);
+      return;
+    }
+
+    if (studioMode === 'dialogue') {
+      speechEngine.speakDialogueSequential(
+        dialogueLines,
+        characters,
+        selectedDialect,
+        (idx) => setActiveDialogueIndex(idx),
+        () => {
+          setIsSpeaking(false);
+          setActiveDialogueIndex(null);
+        }
+      );
+      setIsSpeaking(true);
       return;
     }
 
@@ -84,22 +138,38 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
   };
 
   const handleDownload = async () => {
-    if (isDownloading || !scriptText.trim()) return;
+    if (isDownloading) return;
 
     setIsDownloading(true);
-    setDownloadStatus('جاري جلب ومعالجة الصوت وتصديره كملف صوتی...');
+    setDownloadStatus('جاري معالجة الصوت وتوليد ملف WAV عالي الجودة...');
 
-    const charsToSpeak = selectedCharacters.length > 0 ? selectedCharacters : [activeChar];
-
-    await speechEngine.downloadAudioFile(
-      scriptText,
-      charsToSpeak,
-      selectedDialect,
-      (statusMsg) => {
-        setDownloadStatus(statusMsg);
-        setTimeout(() => setDownloadStatus(null), 4000);
+    if (studioMode === 'dialogue') {
+      await speechEngine.downloadDialogueAudio(
+        dialogueLines,
+        characters,
+        selectedDialect,
+        (statusMsg) => {
+          setDownloadStatus(statusMsg);
+          setTimeout(() => setDownloadStatus(null), 4000);
+        }
+      );
+    } else {
+      if (!scriptText.trim()) {
+        setIsDownloading(false);
+        return;
       }
-    );
+      const charsToSpeak = selectedCharacters.length > 0 ? selectedCharacters : [activeChar];
+
+      await speechEngine.downloadAudioFile(
+        scriptText,
+        charsToSpeak,
+        selectedDialect,
+        (statusMsg) => {
+          setDownloadStatus(statusMsg);
+          setTimeout(() => setDownloadStatus(null), 4000);
+        }
+      );
+    }
 
     setIsDownloading(false);
   };
@@ -115,13 +185,13 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
           </div>
           <div>
             <h2 className="font-extrabold text-base text-white flex items-center gap-2">
-              <span>محرك تحويل النص إلى صوت (Gemini Arabic TTS Engine)</span>
+              <span>استوديو الصوتيات العربي للأطفال (Professional Kids TTS Studio)</span>
               <span className="px-2 py-0.5 bg-amber-400/20 text-amber-300 text-[10px] font-black rounded-full uppercase border border-amber-400/30">
-                Server API Ready
+                Gemini AI Engine
               </span>
             </h2>
             <p className="text-xs text-purple-200">
-              توليد صوت عربي حقيقي عبر نموذج Gemini API مباشرة دون الاعتماد على أصوات المتصفح المحلية.
+              توليد أصوات أطفال ومعلمين احترافية ودعم السيناريوهات الحوارية والتشكيل التلقائي.
             </p>
           </div>
         </div>
@@ -132,7 +202,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
             className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-amber-900/30 cursor-pointer"
           >
             <Volume2 className="w-4 h-4 text-slate-950" />
-            <span>اختبار الصوت العربي (Test Arabic Voice)</span>
+            <span>اختبار الصوت العربي</span>
           </button>
 
           <button
@@ -153,64 +223,158 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
         </div>
       )}
 
-      {/* Script Input Box */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#E1F5FE] space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            <span className="px-3 py-1 bg-[#E0F7FA] text-[#00838F] rounded-xl text-xs font-extrabold uppercase tracking-wide">
-              محرر النص
-            </span>
-            <span className="text-gray-400 text-xs font-semibold">
-              | {selectedCharacters.length > 0 ? `${selectedCharacters.map(c => c.arabicName).join('، ')}` : activeChar.arabicName}
-            </span>
-          </div>
+      {/* Studio Mode Switcher Bar */}
+      <div className="bg-white rounded-2xl p-2 shadow-xs border border-purple-100 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 w-full">
+          <button
+            onClick={() => setStudioMode('single')}
+            className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              studioMode === 'single'
+                ? 'bg-[#7B1FA2] text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>وضع النص الفردي (Single Script)</span>
+          </button>
 
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedDialect}
-              onChange={(e) => handleDialectChange(e.target.value as LanguageDialectId)}
-              className="bg-[#F5F5F5] border-none rounded-xl text-xs font-bold px-3 py-2 text-[#4527A0] outline-none cursor-pointer hover:bg-gray-200 transition-colors"
-            >
-              {LANGUAGE_DIALECTS.map((dialect) => (
-                <option key={dialect.id} value={dialect.id}>
-                  {dialect.flag} {dialect.nativeName} ({dialect.name})
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={() => setScriptText(currentDialectObj.sampleText)}
-              className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-xl text-xs font-semibold border border-gray-200 hover:bg-gray-100 flex items-center gap-1 transition-all"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>نص تجريبي</span>
-            </button>
-          </div>
-        </div>
-
-        <textarea
-          value={scriptText}
-          onChange={(e) => setScriptText(e.target.value)}
-          rows={5}
-          placeholder="اكتب النص هنا ليقوم الأطفال بنطقه..."
-          className="w-full text-xl font-medium leading-relaxed text-gray-800 bg-transparent resize-none outline-none placeholder-gray-300 transition-all"
-          dir="auto"
-        />
-
-        <div className="pt-3 flex items-center justify-between border-t border-gray-100 text-xs text-gray-400">
-          <div className="flex space-x-2 rtl:space-x-reverse">
-            <button
-              onClick={() => setScriptText('')}
-              className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-medium border border-gray-100 transition-all"
-            >
-              مسح النص (Clear)
-            </button>
-          </div>
-          <p className="font-semibold text-[#7B1FA2]">
-            {scriptText.length} حرف | {currentDialectObj.nativeName}
-          </p>
+          <button
+            onClick={() => setStudioMode('dialogue')}
+            className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              studioMode === 'dialogue'
+                ? 'bg-[#7B1FA2] text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 text-amber-300" />
+            <span>وضع حوار السيناريو (Multi-Character Storyboard)</span>
+          </button>
         </div>
       </div>
+
+      {/* Single Script Mode vs Dialogue Storyboard Mode */}
+      {studioMode === 'single' ? (
+        <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#E1F5FE] space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+            <div className="flex items-center space-x-2 rtl:space-x-reverse">
+              <span className="px-3 py-1 bg-[#E0F7FA] text-[#00838F] rounded-xl text-xs font-extrabold uppercase tracking-wide">
+                محرر النص الاحترافي
+              </span>
+              <span className="text-gray-400 text-xs font-semibold">
+                | {selectedCharacters.length > 0 ? `${selectedCharacters.map(c => c.arabicName).join('، ')}` : activeChar.arabicName}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={selectedDialect}
+                onChange={(e) => handleDialectChange(e.target.value as LanguageDialectId)}
+                className="bg-[#F5F5F5] border-none rounded-xl text-xs font-bold px-3 py-2 text-[#4527A0] outline-none cursor-pointer hover:bg-gray-200 transition-colors"
+              >
+                {LANGUAGE_DIALECTS.map((dialect) => (
+                  <option key={dialect.id} value={dialect.id}>
+                    {dialect.flag} {dialect.nativeName} ({dialect.name})
+                  </option>
+                ))}
+              </select>
+
+              {/* Script Templates Picker */}
+              <select
+                onChange={(e) => {
+                  const tpl = SCRIPT_TEMPLATES.find(t => t.id === e.target.value);
+                  if (tpl) setScriptText(tpl.text);
+                }}
+                defaultValue=""
+                className="bg-amber-50 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold px-3 py-2 outline-none cursor-pointer hover:bg-amber-100 transition-all"
+              >
+                <option value="" disabled>📚 نصوص وقصص جاهزة...</option>
+                {SCRIPT_TEMPLATES.map(t => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Auto-Tashkeel & Expression Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50/80 p-2.5 rounded-2xl border border-gray-200 text-xs">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleAutoTashkeel}
+                className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                title="إضافة تشكيل إملائي ونحوي دقيق للكلمات"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>تشكيل النص تلقائياً (Auto-Tashkeel)</span>
+              </button>
+
+              <button
+                onClick={handleRemoveTashkeel}
+                className="px-2.5 py-1.5 bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-xl font-semibold transition-all cursor-pointer"
+                title="إزالة جميع الحركات التشكيلية"
+              >
+                <span>إزالة التشكيل</span>
+              </button>
+            </div>
+
+            {/* Acoustic Expression Tag Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+              <span className="text-[11px] font-bold text-gray-400">إضافة نبرة:</span>
+              <button
+                onClick={() => insertExpressionTag('[توقف 1 ثانية]')}
+                className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-[10px] font-bold transition-all"
+              >
+                ⏱️ وقفة (1s)
+              </button>
+              <button
+                onClick={() => insertExpressionTag('[همس]')}
+                className="px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded-lg text-[10px] font-bold transition-all"
+              >
+                🤫 همس
+              </button>
+              <button
+                onClick={() => insertExpressionTag('[تأكيد وحماس]')}
+                className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded-lg text-[10px] font-bold transition-all"
+              >
+                🔥 حماس
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            value={scriptText}
+            onChange={(e) => setScriptText(e.target.value)}
+            rows={5}
+            placeholder="اكتب النص هنا ليقوم الأطفال بنطقه..."
+            className="w-full text-xl font-medium leading-relaxed text-gray-800 bg-transparent resize-none outline-none placeholder-gray-300 transition-all"
+            dir="auto"
+          />
+
+          <div className="pt-3 flex items-center justify-between border-t border-gray-100 text-xs text-gray-400">
+            <div className="flex space-x-2 rtl:space-x-reverse">
+              <button
+                onClick={() => setScriptText('')}
+                className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-medium border border-gray-100 transition-all"
+              >
+                مسح النص (Clear)
+              </button>
+            </div>
+            <p className="font-semibold text-[#7B1FA2]">
+              {scriptText.length} حرف | {currentDialectObj.nativeName}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <DialogueEditor
+          characters={characters}
+          dialogueLines={dialogueLines}
+          setDialogueLines={setDialogueLines}
+          selectedDialect={selectedDialect}
+          isSpeaking={isSpeaking}
+          setIsSpeaking={setIsSpeaking}
+          activeLineIndex={activeDialogueIndex}
+          setActiveLineIndex={setActiveDialogueIndex}
+        />
+      )}
 
       {/* Voice Characters Roster */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#F1F8E9] space-y-4">
@@ -307,7 +471,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
                 () => {}
               );
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#2E7D32] rounded-xl text-xs font-bold transition-all border border-green-200 shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#2E7D32] rounded-xl text-xs font-bold transition-all border border-green-200 shadow-xs cursor-pointer"
           >
             <Volume2 className="w-4 h-4 text-green-700" />
             <span>تجربة هذا الصوت (Test)</span>
@@ -315,7 +479,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Pitch Control (درجة الصوت: رفيع ↔ تخين) */}
+          {/* Pitch Control */}
           <div className="space-y-2 bg-white p-4 rounded-2xl border border-purple-100">
             <div className="flex justify-between text-xs font-extrabold text-gray-800">
               <span className="flex items-center gap-1 text-[#7B1FA2]">
@@ -340,7 +504,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
             </div>
           </div>
 
-          {/* Rate/Speed Control (سرعة الصوت) */}
+          {/* Rate/Speed Control */}
           <div className="space-y-2 bg-white p-4 rounded-2xl border border-sky-100">
             <div className="flex justify-between text-xs font-extrabold text-gray-800">
               <span className="flex items-center gap-1 text-[#0288D1]">
@@ -366,7 +530,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
           </div>
         </div>
 
-        {/* Mood Preset Control (المزاج الانفعالي) */}
+        {/* Mood Preset Control */}
         <div className="space-y-2 bg-white p-4 rounded-2xl border border-amber-100">
           <div className="flex items-center gap-1.5 text-xs font-extrabold text-gray-800 mb-1">
             <Smile className="w-4 h-4 text-amber-500" />
@@ -380,7 +544,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
                   key={m.id}
                   type="button"
                   onClick={() => handleMoodChange(activeChar.id, m.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-[#7B1FA2] text-white border-[#7B1FA2] shadow-sm transform scale-102'
                       : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-purple-50 hover:border-purple-200'
@@ -401,7 +565,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
           <div className={`w-3.5 h-3.5 rounded-full ${isSpeaking ? 'bg-[#FF7043] animate-ping' : 'bg-[#81C784]'}`} />
           <div>
             <span className="text-xs font-extrabold text-[#7B1FA2] block">
-              {isSpeaking ? 'Playback Active (Chorus Live)' : 'Studio Standby'}
+              {isSpeaking ? 'Playback Active (Live Synthesis)' : 'Studio Standby'}
             </span>
             <span className="text-[10px] text-gray-500">
               {isSpeaking ? `Voices: ${selectedCharacters.map(c => c.arabicName).join(', ') || activeChar.arabicName}` : 'اضغط تشغيل الصوت للبدء'}
@@ -411,15 +575,15 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
 
         {/* Waveform bars */}
         <div className="flex items-center gap-1 h-8">
-          {[...Array(12)].map((_, i) => (
+          {[...Array(14)].map((_, i) => (
             <div
               key={i}
               className={`w-1.5 rounded-full transition-all duration-300 ${
                 isSpeaking ? 'bg-[#FF7043] animate-pulse' : 'bg-[#CE93D8] h-2'
               }`}
               style={{
-                height: isSpeaking ? `${Math.max(8, (i * 7) % 28)}px` : '8px',
-                animationDelay: `${i * 60}ms`
+                height: isSpeaking ? `${Math.max(8, (i * 9) % 32)}px` : '8px',
+                animationDelay: `${i * 50}ms`
               }}
             />
           ))}
@@ -430,7 +594,7 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
         <button
           onClick={handlePlay}
-          className={`w-full sm:w-auto px-10 py-5 bg-[#FF7043] hover:bg-[#F4511E] rounded-3xl shadow-lg shadow-orange-200 flex items-center justify-center space-x-3 rtl:space-x-reverse transition-all transform hover:scale-[1.02] active:scale-95 text-white ${
+          className={`w-full sm:w-auto px-10 py-5 bg-[#FF7043] hover:bg-[#F4511E] rounded-3xl shadow-lg shadow-orange-200 flex items-center justify-center space-x-3 rtl:space-x-reverse transition-all transform hover:scale-[1.02] active:scale-95 text-white cursor-pointer ${
             isSpeaking ? 'bg-[#D32F2F] hover:bg-[#C2185B] shadow-red-200' : ''
           }`}
         >
@@ -442,20 +606,20 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
             )}
           </div>
           <span className="font-black text-xl tracking-wider uppercase">
-            {isSpeaking ? 'إيقاف الصوت (Stop)' : 'تشغيل الصوت (Play)'}
+            {isSpeaking ? 'إيقاف الصوت (Stop)' : studioMode === 'dialogue' ? 'تشغيل الحوار الكامل' : 'تشغيل الصوت (Play)'}
           </span>
         </button>
 
         <button
           onClick={handleDownload}
-          disabled={isDownloading || !scriptText.trim()}
-          className="w-full sm:w-auto px-8 py-5 bg-[#2E7D32] hover:bg-[#1B5E20] disabled:bg-gray-300 rounded-3xl shadow-lg shadow-green-200 flex items-center justify-center space-x-3 rtl:space-x-reverse transition-all transform hover:scale-[1.02] active:scale-95 text-white font-bold"
+          disabled={isDownloading || (studioMode === 'single' && !scriptText.trim())}
+          className="w-full sm:w-auto px-8 py-5 bg-[#2E7D32] hover:bg-[#1B5E20] disabled:bg-gray-300 rounded-3xl shadow-lg shadow-green-200 flex items-center justify-center space-x-3 rtl:space-x-reverse transition-all transform hover:scale-[1.02] active:scale-95 text-white font-bold cursor-pointer"
         >
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
             <Download className="w-5 h-5 text-white" />
           </div>
           <span className="font-black text-lg tracking-wide">
-            {isDownloading ? 'جاري التحميل...' : 'حفظ كملف صوتی (Download MP3)'}
+            {isDownloading ? 'جاري التحميل...' : studioMode === 'dialogue' ? 'تحميل ملف الحوار MP3/WAV' : 'حفظ كملف صوتی (Download MP3)'}
           </span>
         </button>
       </div>
@@ -466,7 +630,15 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
         </div>
       )}
 
+      {/* Audio Generation History Library */}
+      <AudioHistoryView
+        history={audioHistory}
+        onClearHistory={() => setAudioHistory([])}
+        onDeleteItem={(id) => setAudioHistory((prev) => prev.filter((item) => item.id !== id))}
+      />
+
     </div>
   );
 };
+
 
