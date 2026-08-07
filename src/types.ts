@@ -2,8 +2,6 @@ export type LanguageDialectId = 'gulf_ar' | 'fusha_ar' | 'egyptian_ar' | 'englis
 
 export type VoiceMood = 'happy' | 'enthusiastic' | 'playful' | 'sad' | 'calm' | 'storytelling';
 
-export type TTSProvider = 'gemini' | 'elevenlabs';
-
 export interface LanguageDialect {
   id: LanguageDialectId;
   name: string;
@@ -14,14 +12,6 @@ export interface LanguageDialect {
   sampleText: string;
 }
 
-export interface CharacterVoiceProfile {
-  provider: TTSProvider;
-  voiceId: string;
-  pitch?: number;
-  speechRate?: number;
-  mood?: VoiceMood;
-}
-
 export interface ChildCharacter {
   id: string;
   name: string;
@@ -30,9 +20,7 @@ export interface ChildCharacter {
   pitch: number; // 0.5 (تخين/عميق) to 2.0 (رفيع/طفولي)
   speechRate: number; // 0.5 (بطيء) to 1.8 (سريع)
   mood?: VoiceMood; // المزاج أو النبرة العاطفية
-  provider?: TTSProvider; // Default TTS provider (gemini or elevenlabs)
-  voiceId?: string; // Real TTS Voice ID / Name
-  languageProfiles?: Partial<Record<LanguageDialectId, CharacterVoiceProfile>>;
+  voiceId?: string; // Real TTS Voice ID / Name (e.g. Aoede, Puck, Callisto, Pegasus, Zephyr, Leda, Fenrir)
   preferredLanguage: LanguageDialectId;
   color: string;
   staggerDelayMs: number; // for chorus offset
@@ -45,24 +33,6 @@ export interface StudioSettings {
   requestFocus: boolean;
   chorusDelayMs: number;
   autoClearText: boolean;
-  fallbackToGemini?: boolean; // Fallback to Gemini if ElevenLabs fails
-}
-
-export interface ElevenLabsVoiceInfo {
-  voice_id: string;
-  name: string;
-  category?: string;
-  description?: string;
-  labels?: {
-    gender?: string;
-    accent?: string;
-    age?: string;
-    use_case?: string;
-    description?: string;
-    language?: string;
-    [key: string]: string | undefined;
-  };
-  preview_url?: string;
 }
 
 

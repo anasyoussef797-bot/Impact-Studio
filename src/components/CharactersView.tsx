@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { Sliders, Sparkles, RotateCcw, Gauge, Smile, Globe, Settings2, Volume2, ChevronDown, ChevronUp } from 'lucide-react';
-import { ChildCharacter, VoiceMood, TTSProvider, LanguageDialectId, ElevenLabsVoiceInfo } from '../types';
-import { INITIAL_CHARACTERS, MOOD_PRESETS, GEMINI_VOICES, LANGUAGE_DIALECTS, speechEngine } from '../utils/speechSynthesis';
-import { ElevenLabsVoicePicker } from './ElevenLabsVoicePicker';
+import React from 'react';
+import { Sliders, Sparkles, RotateCcw, Gauge, Smile, Volume2 } from 'lucide-react';
+import { ChildCharacter, VoiceMood } from '../types';
+import { INITIAL_CHARACTERS, MOOD_PRESETS, GEMINI_VOICES, speechEngine } from '../utils/speechSynthesis';
 
 interface CharactersViewProps {
   characters: ChildCharacter[];
@@ -10,10 +9,6 @@ interface CharactersViewProps {
 }
 
 export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setCharacters }) => {
-  const [activePickerCharId, setActivePickerCharId] = useState<string | null>(null);
-  const [activePickerDialect, setActivePickerDialect] = useState<LanguageDialectId | 'default'>('default');
-  const [expandedMultilingual, setExpandedMultilingual] = useState<Record<string, boolean>>({});
-
   const handlePitchChange = (id: string, newPitch: number) => {
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, pitch: parseFloat(newPitch.toFixed(2)) } : c))
@@ -32,39 +27,9 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
     );
   };
 
-  const handleProviderChange = (id: string, provider: TTSProvider) => {
-    setCharacters((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        const defaultVoice = provider === 'gemini' ? (c.gender === 'male' ? 'Puck' : 'Aoede') : '21m00Tcm4TlvDq8ikWAM';
-        return {
-          ...c,
-          provider,
-          voiceId: defaultVoice
-        };
-      })
-    );
-  };
-
   const handleVoiceChange = (id: string, newVoiceId: string) => {
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, voiceId: newVoiceId } : c))
-    );
-  };
-
-  const handleLangProfileChange = (
-    charId: string,
-    dialectId: LanguageDialectId,
-    provider: TTSProvider,
-    voiceId: string
-  ) => {
-    setCharacters((prev) =>
-      prev.map((c) => {
-        if (c.id !== charId) return c;
-        const updatedProfiles = { ...(c.languageProfiles || {}) };
-        updatedProfiles[dialectId] = { provider, voiceId };
-        return { ...c, languageProfiles: updatedProfiles };
-      })
     );
   };
 
@@ -72,47 +37,19 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
     setCharacters(INITIAL_CHARACTERS);
   };
 
-  const toggleMultilingual = (charId: string) => {
-    setExpandedMultilingual((prev) => ({ ...prev, [charId]: !prev[charId] }));
-  };
-
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-      {/* ElevenLabs Picker Modal */}
-      {activePickerCharId && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <ElevenLabsVoicePicker
-            selectedVoiceId={
-              activePickerDialect === 'default'
-                ? characters.find((c) => c.id === activePickerCharId)?.voiceId
-                : characters.find((c) => c.id === activePickerCharId)?.languageProfiles?.[activePickerDialect]?.voiceId
-            }
-            onSelectVoice={(voice: ElevenLabsVoiceInfo) => {
-              if (activePickerDialect === 'default') {
-                handleVoiceChange(activePickerCharId, voice.voice_id);
-              } else {
-                const char = characters.find((c) => c.id === activePickerCharId);
-                const currentProv = char?.languageProfiles?.[activePickerDialect]?.provider || 'elevenlabs';
-                handleLangProfileChange(activePickerCharId, activePickerDialect, currentProv, voice.voice_id);
-              }
-              setActivePickerCharId(null);
-            }}
-            onClose={() => setActivePickerCharId(null)}
-          />
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border-2 border-[#FFF9C4] shadow-sm">
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-500" />
             <h2 className="text-xl font-extrabold text-[#4527A0]">
-              إعدادات محركات وبصمة الأصوات (Gemini & ElevenLabs TTS)
+              إعدادات وبصمة الأصوات (Gemini TTS Studio)
             </h2>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            اختر محرك الصوت (Gemini أو ElevenLabs)، وخصص بصمة الصوت حسب الشخصية واللغة، مع التحكم بالنبرة والسرعة والمزاج.
+            خصص بصمة الصوت لكل شخصية (الأطفال والمعلمين) باختيار هوية الصوت الحقيقية، والتحكم بالنبرة والسرعة والمزاج.
           </p>
         </div>
 
@@ -130,8 +67,6 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
         {characters.map((char) => {
           const isTeacher = char.role === 'teacher';
           const currentMood = char.mood || 'happy';
-          const currentProvider: TTSProvider = char.provider || 'gemini';
-          const isMultilingualExpanded = expandedMultilingual[char.id] || false;
 
           return (
             <div
@@ -176,92 +111,29 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                 </div>
               </div>
 
-              {/* TTS Engine Selector (Gemini vs ElevenLabs) */}
-              <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-                <label className="text-xs font-extrabold text-gray-800 flex items-center gap-1.5">
-                  <Settings2 className="w-4 h-4 text-purple-600" />
-                  <span>مزود محرك الصوت (TTS Provider):</span>
-                </label>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleProviderChange(char.id, 'gemini')}
-                    className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all border ${
-                      currentProvider === 'gemini'
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                        : 'bg-white text-gray-700 border-gray-200 hover:bg-indigo-50'
-                    }`}
-                  >
-                    <span>🔮</span>
-                    <span>Gemini TTS</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleProviderChange(char.id, 'elevenlabs')}
-                    className={`py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all border ${
-                      currentProvider === 'elevenlabs'
-                        ? 'bg-purple-700 text-white border-purple-700 shadow-xs'
-                        : 'bg-white text-gray-700 border-gray-200 hover:bg-purple-50'
-                    }`}
-                  >
-                    <span>⚡</span>
-                    <span>ElevenLabs AI</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Voice Identity Picker based on provider */}
+              {/* Voice Identity Picker (Gemini Voices) */}
               <div className="space-y-1.5 bg-indigo-50/50 p-3.5 rounded-2xl border border-indigo-100">
                 <div className="flex justify-between items-center text-xs font-extrabold text-gray-800">
                   <span className="flex items-center gap-1.5 text-indigo-800">
                     <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>
-                      هوية الصوت الحقيقية ({currentProvider === 'elevenlabs' ? 'ElevenLabs' : 'Gemini'}):
-                    </span>
+                    <span>هوية الصوت الحقيقية (Gemini Voice):</span>
                   </span>
-                  <span className="text-indigo-900 font-extrabold bg-indigo-100 border border-indigo-200 px-2.5 py-0.5 rounded-full text-[11px] truncate max-w-[140px]">
-                    {char.voiceId || (currentProvider === 'elevenlabs' ? 'Default' : 'Aoede')}
+                  <span className="text-indigo-900 font-extrabold bg-indigo-100 border border-indigo-200 px-2.5 py-0.5 rounded-full text-[11px]">
+                    {char.voiceId || 'Aoede'}
                   </span>
                 </div>
 
-                {currentProvider === 'gemini' ? (
-                  <select
-                    value={char.voiceId || 'Aoede'}
-                    onChange={(e) => handleVoiceChange(char.id, e.target.value)}
-                    className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none hover:border-indigo-400 cursor-pointer shadow-2xs"
-                  >
-                    {GEMINI_VOICES.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name} - {v.arabicName} ({v.recommendedRole})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={char.voiceId || ''}
-                        onChange={(e) => handleVoiceChange(char.id, e.target.value)}
-                        placeholder="أدخل ElevenLabs Voice ID..."
-                        className="flex-1 bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-gray-800 outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActivePickerCharId(char.id);
-                          setActivePickerDialect('default');
-                        }}
-                        className="px-3 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs shadow-xs transition-all flex items-center gap-1 whitespace-nowrap"
-                      >
-                        <span>🎙️</span>
-                        <span>مكتبة الأصوات</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <select
+                  value={char.voiceId || 'Aoede'}
+                  onChange={(e) => handleVoiceChange(char.id, e.target.value)}
+                  className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none hover:border-indigo-400 cursor-pointer shadow-2xs"
+                >
+                  {GEMINI_VOICES.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} - {v.arabicName} ({v.recommendedRole})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Pitch Slider */}
@@ -336,94 +208,6 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                     );
                   })}
                 </div>
-              </div>
-
-              {/* Multilingual Voice Profiles Accordion */}
-              <div className="border-t border-gray-100 pt-3">
-                <button
-                  type="button"
-                  onClick={() => toggleMultilingual(char.id)}
-                  className="w-full flex items-center justify-between text-xs font-extrabold text-purple-800 bg-purple-50 hover:bg-purple-100/80 p-2.5 rounded-2xl border border-purple-200 transition-all"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Globe className="w-4 h-4 text-purple-600" />
-                    <span>تخصيص أصوات اللغات المتعددة (Multilingual Voices)</span>
-                  </span>
-                  {isMultilingualExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-
-                {isMultilingualExpanded && (
-                  <div className="mt-3 space-y-3 bg-gray-50 p-3 rounded-2xl border border-gray-200 text-xs">
-                    <p className="text-[11px] text-gray-500">
-                      يمكنك ربط صوت ومحرك محدد (مثلاً ElevenLabs للعربية و Gemini للإنجليزية) لكل لغة على حدة:
-                    </p>
-
-                    {LANGUAGE_DIALECTS.map((dialect) => {
-                      const profile = char.languageProfiles?.[dialect.id];
-                      const dProvider = profile?.provider || currentProvider;
-                      const dVoice = profile?.voiceId || char.voiceId || '';
-
-                      return (
-                        <div key={dialect.id} className="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
-                          <div className="flex items-center justify-between font-extrabold text-gray-800">
-                            <span className="flex items-center gap-1.5">
-                              <span>{dialect.flag}</span>
-                              <span>{dialect.nativeName}</span>
-                            </span>
-                            <span className="text-[10px] text-purple-700 font-bold">
-                              {dProvider === 'elevenlabs' ? 'ElevenLabs' : 'Gemini'}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <select
-                              value={dProvider}
-                              onChange={(e) =>
-                                handleLangProfileChange(
-                                  char.id,
-                                  dialect.id,
-                                  e.target.value as TTSProvider,
-                                  dVoice
-                                )
-                              }
-                              className="bg-gray-50 border border-gray-200 rounded-lg p-1.5 font-bold text-xs"
-                            >
-                              <option value="gemini">🔮 Gemini</option>
-                              <option value="elevenlabs">⚡ ElevenLabs</option>
-                            </select>
-
-                            {dProvider === 'gemini' ? (
-                              <select
-                                value={dVoice || 'Aoede'}
-                                onChange={(e) =>
-                                  handleLangProfileChange(char.id, dialect.id, 'gemini', e.target.value)
-                                }
-                                className="bg-gray-50 border border-gray-200 rounded-lg p-1.5 font-bold text-xs"
-                              >
-                                {GEMINI_VOICES.map((v) => (
-                                  <option key={v.id} value={v.id}>
-                                    {v.name}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActivePickerCharId(char.id);
-                                  setActivePickerDialect(dialect.id);
-                                }}
-                                className="bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg p-1.5 font-extrabold text-xs text-center truncate"
-                              >
-                                {dVoice ? `صوت: ${dVoice.slice(0, 8)}...` : 'اختر صوتاً'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
               {/* Voice Test Button */}

@@ -1,5 +1,4 @@
 import { GoogleGenAI, Modality } from '@google/genai';
-import { generateElevenLabsAudio } from './elevenlabs';
 
 function createWavHeader(pcmDataLength: number, sampleRate = 24000, numChannels = 1, bitsPerSample = 16): Buffer {
 
@@ -145,37 +144,9 @@ export async function handleTTSRequest(req: any, res: any) {
     const gender = (query.gender || body.gender || 'female').toString();
     const charId = (query.charId || body.charId || '').toString();
     const role = (query.role || body.role || 'child').toString();
-    const provider = (query.provider || body.provider || 'gemini').toString().toLowerCase();
-    const fallbackSetting = (query.fallback || body.fallback || 'off').toString().toLowerCase();
 
     if (!q) {
       return res.status(400).json({ error: 'Missing required parameter "q" or "text"' });
-    }
-
-    // Provider 1: ElevenLabs
-    if (provider === 'elevenlabs') {
-      try {
-        console.log(`[TTS DEBUG] Using ElevenLabs Provider | VoiceID: "${voiceParam}" | Text: "${q.slice(0, 30)}..."`);
-        const audioBuffer = await generateElevenLabsAudio(q, voiceParam);
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('X-TTS-Engine', 'ElevenLabs-TTS');
-        res.setHeader('X-TTS-Model', 'eleven_multilingual_v2');
-        res.setHeader('X-TTS-Voice', voiceParam || 'Default');
-        res.setHeader('X-TTS-Provider', 'ElevenLabs');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        return res.send(audioBuffer);
-      } catch (elErr: any) {
-        console.error('[ElevenLabs TTS Error]:', elErr.message);
-        if (fallbackSetting === 'on') {
-          console.warn('[ElevenLabs Fallback] Falling back to Gemini TTS as fallback=on');
-        } else {
-          return res.status(502).json({
-            error: `ElevenLabs TTS failed: ${elErr.message}`,
-            provider: 'elevenlabs',
-            hint: 'You can enable "Fallback to Gemini if ElevenLabs fails" in Settings or verify your ElevenLabs API Key.'
-          });
-        }
-      }
     }
 
     const isArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(q) || tl.includes('ar');
