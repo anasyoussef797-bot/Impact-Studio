@@ -2,12 +2,18 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { handleTTSRequest } from './api/tts';
+import { handleElevenLabsVoices } from './api/elevenlabs';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
+
+  // ElevenLabs Voices Route
+  app.all('/api/elevenlabs/voices', (req, res) => {
+    handleElevenLabsVoices(req, res);
+  });
 
   // Unified TTS Route (Delegates to serverless & Cloud Run handler)
   app.all('/api/tts', (req, res) => {

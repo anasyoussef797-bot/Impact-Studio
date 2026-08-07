@@ -331,6 +331,7 @@ export class WebStudioSpeechEngine {
   private activeTimers: number[] = [];
   private activeAudios: HTMLAudioElement[] = [];
   private isStopped = false;
+  private fallbackToGemini = false;
   private lastDiagnostic: TTSDiagnosticInfo | null = null;
   private diagnosticListeners: ((info: TTSDiagnosticInfo) => void)[] = [];
 
@@ -343,6 +344,26 @@ export class WebStudioSpeechEngine {
       }
     }
   }
+
+  public setFallbackToGemini(enabled: boolean) {
+    this.fallbackToGemini = enabled;
+  }
+
+  public async fetchElevenLabsVoices() {
+    try {
+      const res = await fetch('/api/elevenlabs/voices');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      return data.voices || [];
+    } catch (err: any) {
+      console.warn('[ElevenLabs Voices Fetch Error]:', err.message);
+      throw err;
+    }
+  }
+
 
   public subscribeDiagnostic(listener: (info: TTSDiagnosticInfo) => void) {
     this.diagnosticListeners.push(listener);
@@ -634,18 +655,25 @@ export class WebStudioSpeechEngine {
     const dialect = LANGUAGE_DIALECTS.find((d) => d.id === dialectId) || LANGUAGE_DIALECTS[0];
     const langCode = isArabic ? dialect.localeCode : dialect.localeCode;
     const encoded = encodeURIComponent(vocalizedText);
-    const url = `/api/tts?q=${encoded}&tl=${encodeURIComponent(langCode)}&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}&voice=${encodeURIComponent(char.voiceId || '')}`;
+
+    // Multilingual Voice Profile Resolution:
+    const langProfile = char.languageProfiles?.[dialectId];
+    const effectiveProvider = langProfile?.provider || char.provider || 'gemini';
+    const effectiveVoiceId = langProfile?.voiceId || char.voiceId || '';
+
+    const url = `/api/tts?q=${encoded}&tl=${encodeURIComponent(langCode)}&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}&voice=${encodeURIComponent(effectiveVoiceId)}&provider=${effectiveProvider}&fallback=${this.fallbackToGemini ? 'on' : 'off'}`;
 
     this.updateDiagnostic({
       timestamp: new Date().toLocaleTimeString(),
       inputLanguage: langCode,
       isArabic,
       textSnippet: vocalizedText.slice(0, 40),
-      engine: 'Gemini Server-Side TTS (/api/tts)',
-      voiceUsed: `${char.name} (${char.role === 'teacher' ? (char.gender === 'male' ? 'المعلم' : 'المعلمة') : (char.gender === 'male' ? 'ولد' : 'بنت')})`,
+      engine: `${effectiveProvider === 'elevenlabs' ? 'ElevenLabs' : 'Gemini'} Server-Side TTS (/api/tts)`,
+      voiceUsed: `${char.name} (${effectiveProvider.toUpperCase()}: ${effectiveVoiceId || 'Default'})`,
       status: 'playing',
       audioFormat: 'audio/wav / audio/mpeg'
     });
+
 
     try {
       const response = await fetch(url);
