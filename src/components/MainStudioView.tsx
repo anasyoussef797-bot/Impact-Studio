@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Play, Square, Users, Download, Sparkles, RefreshCw, Sliders, Gauge, Smile, Volume2, Activity, ChevronDown, ChevronUp, Type, Wand2, FileText, MessageSquare } from 'lucide-react';
 import { ChildCharacter, LanguageDialectId, VoiceMood, DialogueLine, AudioHistoryItem } from '../types';
-import { LANGUAGE_DIALECTS, MOOD_PRESETS, speechEngine } from '../utils/speechSynthesis';
+import { LANGUAGE_DIALECTS, MOOD_PRESETS, GEMINI_VOICES, speechEngine } from '../utils/speechSynthesis';
 import { autoTashkeelText, removeDiacritics, SCRIPT_TEMPLATES } from '../utils/arabicUtils';
 import { DiagnosticPanel } from './DiagnosticPanel';
 import { DialogueEditor } from './DialogueEditor';
@@ -74,6 +74,12 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
   const handleMoodChange = (id: string, newMood: VoiceMood) => {
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, mood: newMood } : c))
+    );
+  };
+
+  const handleVoiceChange = (id: string, newVoiceId: string) => {
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, voiceId: newVoiceId } : c))
     );
   };
 
@@ -423,7 +429,10 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
                   {char.arabicName}
                 </span>
                 <span className="text-[10px] text-gray-400 font-semibold truncate w-full">{char.name}</span>
-                <span className="text-[9px] font-bold text-gray-500 mt-0.5">{char.pitch}x Pitch</span>
+                <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded-md border border-indigo-100 mt-0.5 truncate w-full">
+                  صوت: {char.voiceId || 'Aoede'}
+                </span>
+                <span className="text-[9px] font-bold text-gray-400 mt-0.5">{char.pitch}x Pitch</span>
                 {isSelected && (
                   <div className={`w-2 h-2 rounded-full mt-1 animate-pulse ${isTeacher ? 'bg-[#7B1FA2]' : 'bg-[#0288D1]'}`} />
                 )}
@@ -476,6 +485,52 @@ export const MainStudioView: React.FC<MainStudioViewProps> = ({ characters, setC
             <Volume2 className="w-4 h-4 text-green-700" />
             <span>تجربة هذا الصوت (Test)</span>
           </button>
+        </div>
+
+        {/* Real TTS Voice Identity Selection (اختيار هوية الصوت الحقيقية) */}
+        <div className="space-y-2.5 bg-white p-4 rounded-2xl border border-indigo-150 shadow-2xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 border-b border-indigo-50 pb-2">
+            <div className="flex items-center gap-1.5 text-xs font-extrabold text-gray-800">
+              <Sparkles className="w-4 h-4 text-indigo-600" />
+              <span>اختيار هوية الصوت الحقيقية (Real TTS Voice Profile):</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-400 font-semibold">الصوت الحالي:</span>
+              <span className="text-indigo-700 font-black bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full text-xs">
+                {activeChar.voiceId || 'Aoede'}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            {GEMINI_VOICES.map((v) => {
+              const isSelected = (activeChar.voiceId || 'Aoede') === v.id;
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => handleVoiceChange(activeChar.id, v.id)}
+                  className={`p-2.5 rounded-xl text-right flex flex-col justify-between border transition-all cursor-pointer text-xs ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-300 transform scale-[1.02]'
+                      : 'bg-gray-50 text-gray-800 border-gray-200 hover:bg-indigo-50 hover:border-indigo-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className="font-extrabold text-xs">{v.name}</span>
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-md font-bold ${
+                      isSelected ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'
+                    }`}>
+                      {v.recommendedRole}
+                    </span>
+                  </div>
+                  <span className={`text-[10px] leading-tight font-medium ${isSelected ? 'text-indigo-100' : 'text-gray-500'}`}>
+                    {v.arabicName.split('(')[1]?.replace(')', '') || v.arabicName}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

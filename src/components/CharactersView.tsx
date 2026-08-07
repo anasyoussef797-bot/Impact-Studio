@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sliders, Sparkles, RotateCcw, HeartHandshake, Gauge, Smile } from 'lucide-react';
 import { ChildCharacter, VoiceMood } from '../types';
-import { INITIAL_CHARACTERS, MOOD_PRESETS, speechEngine } from '../utils/speechSynthesis';
+import { INITIAL_CHARACTERS, MOOD_PRESETS, GEMINI_VOICES, speechEngine } from '../utils/speechSynthesis';
 
 interface CharactersViewProps {
   characters: ChildCharacter[];
@@ -24,6 +24,12 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
   const handleMoodChange = (id: string, newMood: VoiceMood) => {
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, mood: newMood } : c))
+    );
+  };
+
+  const handleVoiceChange = (id: string, newVoiceId: string) => {
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, voiceId: newVoiceId } : c))
     );
   };
 
@@ -102,6 +108,30 @@ export const CharactersView: React.FC<CharactersViewProps> = ({ characters, setC
                     {char.pitch >= 1.4 ? 'طفل رفيع' : char.pitch <= 0.9 ? 'عميق / تخين' : 'طبيعي'}
                   </span>
                 </div>
+              </div>
+
+              {/* Real Voice Identity Dropdown */}
+              <div className="space-y-1.5 bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100">
+                <div className="flex justify-between items-center text-xs font-extrabold text-gray-800">
+                  <span className="flex items-center gap-1.5 text-indigo-700">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>هوية الصوت الحقيقية (Real TTS Voice):</span>
+                  </span>
+                  <span className="text-indigo-800 font-extrabold bg-indigo-100 border border-indigo-200 px-2.5 py-0.5 rounded-full text-[11px]">
+                    {char.voiceId || 'Aoede'}
+                  </span>
+                </div>
+                <select
+                  value={char.voiceId || 'Aoede'}
+                  onChange={(e) => handleVoiceChange(char.id, e.target.value)}
+                  className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none hover:border-indigo-400 cursor-pointer shadow-2xs"
+                >
+                  {GEMINI_VOICES.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} - {v.arabicName} ({v.recommendedRole})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Pitch Slider (رفيع / تخين) */}

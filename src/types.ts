@@ -20,6 +20,7 @@ export interface ChildCharacter {
   pitch: number; // 0.5 (تخين/عميق) to 2.0 (رفيع/طفولي)
   speechRate: number; // 0.5 (بطيء) to 1.8 (سريع)
   mood?: VoiceMood; // المزاج أو النبرة العاطفية
+  voiceId?: string; // Real TTS Voice ID / Name (e.g. Aoede, Puck, Callisto, Pegasus, Zephyr, Leda, Fenrir)
   preferredLanguage: LanguageDialectId;
   color: string;
   staggerDelayMs: number; // for chorus offset

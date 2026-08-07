@@ -11,7 +11,34 @@ import { ChildCharacter } from './types';
 export default function App() {
   const [activeTab, setActiveTab] = useState<'studio' | 'characters' | 'settings' | 'android-code'>('studio');
   const [showSplash, setShowSplash] = useState<boolean>(true);
-  const [characters, setCharacters] = useState<ChildCharacter[]>(INITIAL_CHARACTERS);
+  const [characters, setCharacters] = useState<ChildCharacter[]>(() => {
+    try {
+      const saved = localStorage.getItem('impact_studio_characters_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((c: any) => {
+            const initChar = INITIAL_CHARACTERS.find((ic) => ic.id === c.id);
+            return {
+              ...c,
+              voiceId: c.voiceId || (initChar ? initChar.voiceId : 'Aoede')
+            };
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load characters from localStorage:', e);
+    }
+    return INITIAL_CHARACTERS;
+  });
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('impact_studio_characters_v2', JSON.stringify(characters));
+    } catch (e) {
+      console.warn('Failed to save characters to localStorage:', e);
+    }
+  }, [characters]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans flex flex-col antialiased selection:bg-purple-500 selection:text-white">

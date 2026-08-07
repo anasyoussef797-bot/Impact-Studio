@@ -30,6 +30,114 @@ export const MOOD_PRESETS: MoodOption[] = [
   { id: 'storytelling', name: 'Storytelling', arabicName: 'حكواتي / سرد', emoji: '📖', pitchOffset: 0.05, rateOffset: -0.05 },
 ];
 
+export interface GeminiVoiceOption {
+  id: string; // voiceName in Gemini TTS API
+  name: string;
+  arabicName: string;
+  description: string;
+  recommendedRole: string;
+  gender: 'female' | 'male';
+}
+
+export const GEMINI_VOICES: GeminiVoiceOption[] = [
+  {
+    id: 'Aoede',
+    name: 'Aoede',
+    arabicName: 'Aoede (صوت تعبيري دافئ)',
+    description: 'صوت أنثوي تعبيري ودافئ (مناسب لشخصية طفلة/بنت)',
+    recommendedRole: 'طفل (بنت)',
+    gender: 'female'
+  },
+  {
+    id: 'Puck',
+    name: 'Puck',
+    arabicName: 'Puck (صوت حماسي وشاب)',
+    description: 'صوت ذكوري مرح ونشيط (مناسب لشخصية طفل/ولد)',
+    recommendedRole: 'طفل (ولد)',
+    gender: 'male'
+  },
+  {
+    id: 'Callisto',
+    name: 'Callisto',
+    arabicName: 'Callisto (صوت ناعم وملحن)',
+    description: 'صوت أنثوي لطيف ومرح (مناسب لشخصية طفلة/بنت)',
+    recommendedRole: 'طفل (بنت)',
+    gender: 'female'
+  },
+  {
+    id: 'Pegasus',
+    name: 'Pegasus',
+    arabicName: 'Pegasus (صوت مرح وشاب)',
+    description: 'صوت ذكوري متزن وودود (مناسب لشخصية طفل/ولد)',
+    recommendedRole: 'طفل (ولد)',
+    gender: 'male'
+  },
+  {
+    id: 'Zephyr',
+    name: 'Zephyr',
+    arabicName: 'Zephyr (صوت رقيق وخفيف)',
+    description: 'صوت أنثوي ناعم يناسب الفتيات والأطفال الصغار',
+    recommendedRole: 'طفل (بنت)',
+    gender: 'female'
+  },
+  {
+    id: 'Leda',
+    name: 'Leda',
+    arabicName: 'Leda (صوت واضح وواثق)',
+    description: 'صوت أنثوي تعليمي واضح (مناسب لشخصيات المعلمات)',
+    recommendedRole: 'معلمة',
+    gender: 'female'
+  },
+  {
+    id: 'Fenrir',
+    name: 'Fenrir',
+    arabicName: 'Fenrir (صوت عميق ودافئ)',
+    description: 'صوت ذكوري جهوري ودافئ (مناسب لشخصيات المعلمين والبالغين)',
+    recommendedRole: 'معلم',
+    gender: 'male'
+  },
+  {
+    id: 'Kore',
+    name: 'Kore',
+    arabicName: 'Kore (صوت متزن ورسمي)',
+    description: 'صوت أنثوي واضح ومناسب للسرد والتعليم',
+    recommendedRole: 'معلمة / راوي',
+    gender: 'female'
+  },
+  {
+    id: 'Charon',
+    name: 'Charon',
+    arabicName: 'Charon (صوت جهوري جداً)',
+    description: 'صوت ذكوري عميق يناسب السرد والراوي المعلم',
+    recommendedRole: 'معلم / راوي',
+    gender: 'male'
+  },
+  {
+    id: 'Orpheus',
+    name: 'Orpheus',
+    arabicName: 'Orpheus (صوت دافئ وودود)',
+    description: 'صوت ذكوري حنون ومناسب لشخصيات المعلمين',
+    recommendedRole: 'معلم',
+    gender: 'male'
+  },
+  {
+    id: 'Miranda',
+    name: 'Miranda',
+    arabicName: 'Miranda (صوت مبهج وحيوي)',
+    description: 'صوت أنثوي مشرق يناسب شخصيات الفتيات',
+    recommendedRole: 'طفل (بنت)',
+    gender: 'female'
+  },
+  {
+    id: 'Umbriel',
+    name: 'Umbriel',
+    arabicName: 'Umbriel (صوت هادئ وسلس)',
+    description: 'صوت ذكوري هادئ يناسب الأولاد',
+    recommendedRole: 'طفل (ولد)',
+    gender: 'male'
+  }
+];
+
 export const LANGUAGE_DIALECTS: DialectOption[] = [
   {
     id: 'gulf_ar',
@@ -96,6 +204,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     pitch: 1.70, // Authentic high child girl voice
     speechRate: 0.95,
     mood: 'happy',
+    voiceId: 'Aoede', // Real Gemini Voice (Warm, expressive female)
     preferredLanguage: 'gulf_ar',
     color: '#FD79A8',
     staggerDelayMs: 0,
@@ -110,6 +219,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     pitch: 1.55, // Energetic child boy voice
     speechRate: 0.92,
     mood: 'enthusiastic',
+    voiceId: 'Puck', // Real Gemini Voice (Energetic, boyish male)
     preferredLanguage: 'gulf_ar',
     color: '#0984E3',
     staggerDelayMs: 40,
@@ -124,6 +234,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     pitch: 1.62, // Sweet kid girl voice
     speechRate: 0.90,
     mood: 'playful',
+    voiceId: 'Callisto', // Real Gemini Voice (Melodic, sweet female)
     preferredLanguage: 'egyptian_ar',
     color: '#00CEC9',
     staggerDelayMs: 80,
@@ -138,6 +249,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     pitch: 1.48, // Calm child boy voice
     speechRate: 0.85,
     mood: 'calm',
+    voiceId: 'Pegasus', // Real Gemini Voice (Youthful, cheerful male)
     preferredLanguage: 'fusha_ar',
     color: '#6C5CE7',
     staggerDelayMs: 120,
@@ -152,6 +264,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     pitch: 1.75, // Playful high child girl voice
     speechRate: 0.98,
     mood: 'happy',
+    voiceId: 'Zephyr', // Real Gemini Voice (Light, soft female)
     preferredLanguage: 'english',
     color: '#E17055',
     staggerDelayMs: 160,
@@ -166,6 +279,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     pitch: 1.05, // Clear adult female teacher voice
     speechRate: 0.95,
     mood: 'storytelling',
+    voiceId: 'Leda', // Real Gemini Voice (Clear, articulate female)
     preferredLanguage: 'fusha_ar',
     color: '#EC407A',
     staggerDelayMs: 200,
@@ -180,6 +294,7 @@ export const INITIAL_CHARACTERS: ChildCharacter[] = [
     pitch: 1.0, // Clear, natural adult male teacher voice
     speechRate: 0.95,
     mood: 'calm',
+    voiceId: 'Fenrir', // Real Gemini Voice (Deep, warm adult male)
     preferredLanguage: 'fusha_ar',
     color: '#2E7D32',
     staggerDelayMs: 240,
@@ -519,7 +634,7 @@ export class WebStudioSpeechEngine {
     const dialect = LANGUAGE_DIALECTS.find((d) => d.id === dialectId) || LANGUAGE_DIALECTS[0];
     const langCode = isArabic ? dialect.localeCode : dialect.localeCode;
     const encoded = encodeURIComponent(vocalizedText);
-    const url = `/api/tts?q=${encoded}&tl=${encodeURIComponent(langCode)}&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}`;
+    const url = `/api/tts?q=${encoded}&tl=${encodeURIComponent(langCode)}&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}&voice=${encodeURIComponent(char.voiceId || '')}`;
 
     this.updateDiagnostic({
       timestamp: new Date().toLocaleTimeString(),
@@ -680,7 +795,7 @@ export class WebStudioSpeechEngine {
           const vocalizedText = isArabic ? enhanceArabicTextForSpeech(sentence) : sentence;
           const langCode = isArabic ? 'ar' : (dialectId === 'english' ? 'en' : 'ar');
           const encoded = encodeURIComponent(vocalizedText);
-          const proxyUrl = `/api/tts?q=${encoded}&tl=${langCode}&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}`;
+          const proxyUrl = `/api/tts?q=${encoded}&tl=${langCode}&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}&voice=${encodeURIComponent(char.voiceId || '')}`;
           const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encoded}&tl=${langCode}`;
 
           let decodedBuf: AudioBuffer | null = null;
@@ -825,7 +940,7 @@ export class WebStudioSpeechEngine {
         const isArabic = isArabicText(line.text);
         const vocalized = isArabic ? enhanceArabicTextForSpeech(line.text) : line.text;
         const encoded = encodeURIComponent(vocalized);
-        const proxyUrl = `/api/tts?q=${encoded}&tl=ar&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}`;
+        const proxyUrl = `/api/tts?q=${encoded}&tl=ar&gender=${char.gender || 'female'}&charId=${char.id}&role=${char.role || 'child'}&pitch=${char.pitch}&rate=${char.speechRate}&voice=${encodeURIComponent(char.voiceId || '')}`;
 
         try {
           const resp = await fetch(proxyUrl);
